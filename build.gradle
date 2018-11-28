@@ -2,6 +2,18 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        // https://github.com/GoogleContainerTools/jib/issues/1018
+        classpath('org.apache.httpcomponents:httpclient:4.0.1') {
+            force = true
+        }
+    }
+}
+
 plugins {
     id 'java'
     id 'maven'
@@ -19,6 +31,12 @@ version = '1.0-SNAPSHOT'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 mainClassName = 'io.wisetime.connector.jira.ConnectorLauncher'
+
+jib {
+    to {
+        image = "wisetime/wisetime-jira-connector"
+    }
+}
 
 repositories {
     mavenCentral()
