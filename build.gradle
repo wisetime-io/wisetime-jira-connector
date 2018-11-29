@@ -16,10 +16,11 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'maven'
     id 'application'
     id 'com.google.cloud.tools.jib' version '0.10.0'
     id 'com.github.kt3k.coveralls' version '2.8.2'
+    id 'maven'
+    id 'net.ltgt.apt' version '0.15'
 }
 
 apply from: "$rootDir/gradle/conf/checkstyle.gradle"
@@ -61,12 +62,20 @@ ext.jacocoLimits = [
 
 dependencies {
     compile 'org.apache.commons:commons-configuration2:2.4'
+    compile 'com.google.inject:guice:4.2.2'
     compile 'io.wisetime:wise-log-aws:3.1.0'
-    compile 'io.wisetime:wisetime-connector:1.0.0'
+    compile 'io.wisetime:wisetime-connector:1.0.3'
+
+    compile 'org.codejargon:fluentjdbc:1.8.3'
+    compile 'mysql:mysql-connector-java:5.1.44'
+    compile 'org.postgresql:postgresql:42.2.2'
 
     compile 'ch.qos.logback:logback-core:1.2.3'
     compile 'ch.qos.logback:logback-classic:1.2.3'
     compile 'org.slf4j:slf4j-api:1.7.25'
+
+    compileOnly "org.immutables:value:2.5.6:annotations"
+    annotationProcessor "org.immutables:value:2.5.6"
 
     testCompile 'org.mockito:mockito-core:2.22.0'
     testCompile 'org.assertj:assertj-core:3.11.1'
