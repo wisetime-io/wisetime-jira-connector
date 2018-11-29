@@ -14,6 +14,11 @@ import java.util.List;
 import io.wisetime.connector.jira.models.Issue;
 
 /**
+ * Simple, unsophisticated access to the Jira database.
+ *
+ * TODO: Figure out a way to output SQL for testing
+ * Investigate: https://github.com/zsoltherpai/fluent-jdbc/wiki/Query-listener
+ *
  * @author shane.xie@practiceinsight.io
  */
 public class JiraDb {

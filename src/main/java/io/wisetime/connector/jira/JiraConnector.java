@@ -24,6 +24,8 @@ import io.wisetime.generated.connect.UpsertTagRequest;
 import spark.Request;
 
 /**
+ * WiseTime Connector implementation for Jira.
+ *
  * @author shane.xie@practiceinsight.io
  */
 public class JiraConnector implements WiseTimeConnector {
@@ -45,8 +47,8 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called on a regular schedule.
-   * Finds Jira issues that haven't been synced yet with WiseTime and upserts matching tags for them.
+   * Called by the WiseTime Connector library on a regular schedule.
+   * Finds Jira issues that haven't been synced and creates matching tags for them in WiseTime.
    */
   @Override
   public void performTagUpdate() {
@@ -80,7 +82,9 @@ public class JiraConnector implements WiseTimeConnector {
     }
   }
 
-  // Called whenever a user posts time to our team
+  /**
+   * Called by the WiseTime Connector library whenever a user posts time to our team.
+   */
   @Override
   public PostResult postTime(Request request, TimeGroup userPostedTime) {
     // TODO

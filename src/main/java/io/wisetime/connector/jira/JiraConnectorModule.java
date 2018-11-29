@@ -7,6 +7,8 @@ package io.wisetime.connector.jira;
 import com.google.inject.AbstractModule;
 
 /**
+ * Wire up application dependencies.
+ *
  * @author shane.xie@practiceinisght.io
  */
 public class JiraConnectorModule extends AbstractModule {

@@ -10,6 +10,8 @@ import com.google.inject.Injector;
 import io.wisetime.connector.ServerRunner;
 
 /**
+ * Connector application entry point.
+ *
  * @author shane.xie@practiceinsight.io
  */
 public class ConnectorLauncher {

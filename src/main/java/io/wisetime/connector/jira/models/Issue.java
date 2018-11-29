@@ -13,6 +13,8 @@ import io.wisetime.generated.connect.UpsertTagRequest;
 import static java.lang.String.format;
 
 /**
+ * Models a Jira issue.
+ *
  * @author shane.xie@practiceinsight.io
  */
 @Value.Immutable
