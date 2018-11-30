@@ -8,6 +8,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import io.wisetime.connector.ServerRunner;
+import io.wisetime.connector.jira.config.JiraConnectorModule;
 
 /**
  * Connector application entry point.
