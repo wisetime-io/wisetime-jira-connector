@@ -28,6 +28,8 @@ public interface Issue {
 
   String getSummary();
 
+  long getTimeSpent();
+
   default UpsertTagRequest toUpsertTagRequest(final String path) {
     final String tagName = format("%s-%s", getProjectKey(), getIssueNumber());
     return new UpsertTagRequest()

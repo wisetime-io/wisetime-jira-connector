@@ -5,6 +5,7 @@
 package io.wisetime.connector.jira;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -17,11 +18,17 @@ import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
 import io.wisetime.connector.jira.database.JiraDb;
+import io.wisetime.connector.jira.models.ImmutableWorklog;
 import io.wisetime.connector.jira.models.Issue;
+import io.wisetime.connector.jira.models.Worklog;
 import io.wisetime.connector.template.TemplateFormatter;
+import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.UpsertTagRequest;
 import spark.Request;
+
+import static io.wisetime.connector.jira.utils.ActivityTimeCalculator.timeGroupStartHour;
+import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDurationSecs;
 
 /**
  * WiseTime Connector implementation for Jira.
@@ -30,8 +37,13 @@ import spark.Request;
  */
 public class JiraConnector implements WiseTimeConnector {
 
-  private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
+  // TODO Make these configurable
   private static String ABSOLUTE_TAG_PATH = "/Jira";
+  // A large batch mitigates query round trip latency
+  private static int MAX_TAG_UPSERT_BATCH_SIZE = 500;
+
+  private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
+
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
   private TemplateFormatter templateFormatter;
@@ -54,10 +66,11 @@ public class JiraConnector implements WiseTimeConnector {
   public void performTagUpdate() {
     while (true) {
       final Optional<Long> lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY);
-      final int maxBatchSize = 500;  // A large batch mitigates query round trip latency
 
-      final List<Issue> issues = jiraDb
-          .findIssuesOrderedById(lastPreviouslySyncedIssueId.orElse(0L), maxBatchSize);
+      final List<Issue> issues = jiraDb.findIssuesOrderedById(
+          lastPreviouslySyncedIssueId.orElse(0L),
+          MAX_TAG_UPSERT_BATCH_SIZE
+      );
 
       if (issues.size() == 0) {
         return;
@@ -84,10 +97,59 @@ public class JiraConnector implements WiseTimeConnector {
 
   /**
    * Called by the WiseTime Connector library whenever a user posts time to our team.
+   * Creates a Jira Worklog entry for the relevant issue.
    */
   @Override
   public PostResult postTime(Request request, TimeGroup userPostedTime) {
-    // TODO
+
+    final String worklogBody = templateFormatter.format(userPostedTime);
+
+    final Optional<LocalDateTime> activityStartTime = timeGroupStartHour(userPostedTime);
+    if (!activityStartTime.isPresent()) {
+      return PostResult.PERMANENT_FAILURE;
+    }
+
+    final Optional<String> author = jiraDb.findUsername(userPostedTime.getUser().getExternalId());
+    if (!author.isPresent()) {
+      return PostResult.PERMANENT_FAILURE;
+    }
+
+    final long workedTime = Math.round(tagDurationSecs(userPostedTime));
+
+    jiraDb.asTransaction(() -> {
+      userPostedTime
+          .getTags()
+          .stream()
+
+          // Find matching Jira issue
+          .map(Tag::getName)
+          .map(jiraDb::findIssueByTagName)
+
+          // Fail the transaction if one of the tags doesn't have a matching issue
+          .map(Optional::get)
+
+          // Update issue time spent
+          .map(issue -> {
+            final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
+            jiraDb.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
+            return issue;
+          })
+
+          // Create worklog entry for issue
+          .forEach(issue -> {
+            final Worklog worklog = ImmutableWorklog
+                .builder()
+                .issueId(issue.getId())
+                .author(author.get())
+                .body(worklogBody)
+                .created(activityStartTime.get())
+                .timeWorked(workedTime)
+                .build();
+
+            jiraDb.createWorklog(worklog);
+          });
+    });
+
     return PostResult.SUCCESS;
   }
 
