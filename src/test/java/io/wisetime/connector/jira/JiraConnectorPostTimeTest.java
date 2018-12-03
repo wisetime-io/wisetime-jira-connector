@@ -52,7 +52,6 @@ class JiraConnectorPostTimeTest {
   private static JiraDb jiraDb = mock(JiraDb.class);
   private static ApiClient apiClient = mock(ApiClient.class);
   private static TemplateFormatter templateFormatter = mock(TemplateFormatter.class);
-  private static ConnectorStore connectorStore = mock(ConnectorStore.class);
   private static JiraConnector connector;
 
   @BeforeAll
@@ -61,7 +60,7 @@ class JiraConnectorPostTimeTest {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
     }).getInstance(JiraConnector.class);
 
-    connector.init(new ConnectorModule(apiClient, templateFormatter, connectorStore));
+    connector.init(new ConnectorModule(apiClient, templateFormatter, mock(ConnectorStore.class)));
   }
 
   @BeforeEach
