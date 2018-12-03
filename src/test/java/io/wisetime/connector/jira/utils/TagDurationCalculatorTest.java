@@ -4,6 +4,8 @@
 
 package io.wisetime.connector.jira.utils;
 
+import com.google.common.collect.ImmutableList;
+
 import org.junit.jupiter.api.Test;
 
 import io.wisetime.connector.jira.testutils.FakeEntities;
@@ -21,9 +23,18 @@ class TagDurationCalculatorTest {
   private final FakeEntities fakeEntities = new FakeEntities();
 
   @Test
+  void tagDurationSecs_no_tags() {
+    final TimeGroup timeGroupWithNoTags = fakeEntities.randomTimeGroup().tags(ImmutableList.of());
+
+    assertThat(tagDurationSecs(timeGroupWithNoTags))
+        .isEqualTo(0)
+        .as("Tag duration should be zero if there are no tags");
+  }
+
+  @Test
   void tagDurationSecs_zero_experience_rating() {
-    final User user = fakeEntities.randomUser().experienceWeightingPercent(0);
-    final TimeGroup timeGroup = fakeEntities.randomTimeGroup().user(user);
+    final User userWithNoExperience = fakeEntities.randomUser().experienceWeightingPercent(0);
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup().user(userWithNoExperience);
 
     assertThat(tagDurationSecs(timeGroup))
         .isEqualTo(0)
