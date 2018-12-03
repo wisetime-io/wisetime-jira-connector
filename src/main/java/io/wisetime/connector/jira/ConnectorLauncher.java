@@ -4,18 +4,24 @@
 
 package io.wisetime.connector.jira;
 
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+
 import io.wisetime.connector.ServerRunner;
+import io.wisetime.connector.jira.config.JiraConnectorModule;
 
 /**
+ * Connector application entry point.
+ *
  * @author shane.xie@practiceinsight.io
  */
 public class ConnectorLauncher {
 
-  // Application entry point
   public static void main(final String... args) throws Exception {
+    final Injector injector = Guice.createInjector(new JiraConnectorModule());
 
     ServerRunner.createServerBuilder()
-        .withWiseTimeConnector(new JiraConnector())
+        .withWiseTimeConnector(injector.getInstance(JiraConnector.class))
         .build()
         .startServer();
   }
