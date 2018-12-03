@@ -102,10 +102,14 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public PostResult postTime(Request request, TimeGroup userPostedTime) {
 
-    final String worklogBody = templateFormatter.format(userPostedTime);
+    if (userPostedTime.getTags().size() == 0) {
+      // Nothing to do
+      return PostResult.SUCCESS;
+    }
 
     final Optional<LocalDateTime> activityStartTime = timeGroupStartHour(userPostedTime);
     if (!activityStartTime.isPresent()) {
+      // Invalid group with no time rows
       return PostResult.PERMANENT_FAILURE;
     }
 
@@ -113,6 +117,8 @@ public class JiraConnector implements WiseTimeConnector {
     if (!author.isPresent()) {
       return PostResult.PERMANENT_FAILURE;
     }
+
+    final String worklogBody = templateFormatter.format(userPostedTime);
 
     final long workedTime = Math.round(tagDurationSecs(userPostedTime));
 

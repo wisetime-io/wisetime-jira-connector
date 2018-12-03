@@ -13,14 +13,12 @@ import org.junit.jupiter.api.Test;
 import io.wisetime.connector.jira.database.JiraDb;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verify;
 
 /**
  * @author shane.xie#practiceinsight.io
  */
-class JiraConnectorTest {
+class JiraConnectorPerformTagUpdateTest {
 
   private static JiraConnector connector;
   private static JiraDb jiraDb;
@@ -41,15 +39,5 @@ class JiraConnectorTest {
 
   @Test
   void performTagUpdate() {
-  }
-
-  @Test
-  void postTime() {
-  }
-
-  @Test
-  void isConnectorHealthy() {
-    connector.isConnectorHealthy();
-    verify(jiraDb, only()).canUseDatabase();
   }
 }

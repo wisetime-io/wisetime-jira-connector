@@ -15,12 +15,15 @@ public class TagDurationCalculator {
     if (timeGroup.getTags().size() == 0) {
       return 0;
     }
+    final double durationWithExperienceRating =
+        timeGroup.getTotalDurationSecs() * timeGroup.getUser().getExperienceWeightingPercent() / 100;
+
     switch (timeGroup.getDurationSplitStrategy()) {
       case WHOLE_DURATION_TO_EACH_TAG:
-        return timeGroup.getTotalDurationSecs();
+        return durationWithExperienceRating;
       case DIVIDE_BETWEEN_TAGS:
       default:
-        return timeGroup.getTotalDurationSecs() / timeGroup.getTags().size();
+        return durationWithExperienceRating / timeGroup.getTags().size();
     }
   }
 }
