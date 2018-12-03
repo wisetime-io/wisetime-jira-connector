@@ -47,7 +47,7 @@ public class FakeEntities {
 
   public Tag randomTag(final String path) {
     return new Tag()
-        .name(faker.letterify("##-", true) + faker.gameOfThrones().house())
+        .name(faker.bothify("??-####", true))
         .description(faker.gameOfThrones().character());
   }
 
@@ -70,6 +70,11 @@ public class FakeEntities {
         .submittedDate(Long.valueOf(faker.numerify("20180#1#1#5#2####")))
         .modifier(faker.gameOfThrones().dragon())
         .source(randomEnum(TimeRow.SourceEnum.class));
+  }
+
+  public Issue randomIssue() {
+    final Tag tag = randomTag("/Jira");
+    return randomIssue(tag.getName());
   }
 
   public Issue randomIssue(final String tagName) {

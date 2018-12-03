@@ -6,10 +6,9 @@ package io.wisetime.connector.jira.models;
 
 import com.google.common.collect.ImmutableList;
 
-import com.github.javafaker.Faker;
-
 import org.junit.jupiter.api.Test;
 
+import io.wisetime.connector.jira.testutils.FakeEntities;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,18 +18,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class IssueTest {
 
-  private static Faker faker = new Faker();
+  private FakeEntities fakeEntities = new FakeEntities();
 
   @Test
   void toUpsertTagRequest() {
-    final Issue issue = ImmutableIssue
-        .builder()
-        .id(faker.number().randomNumber())
-        .projectKey("WT")
-        .issueNumber(faker.numerify("####"))
-        .summary(faker.gameOfThrones().quote())
-        .build();
-
+    final Issue issue = fakeEntities.randomIssue();
     final UpsertTagRequest request = issue.toUpsertTagRequest("/Jira");
     final String tagName = issue.getProjectKey() + "-" + issue.getIssueNumber();
 
