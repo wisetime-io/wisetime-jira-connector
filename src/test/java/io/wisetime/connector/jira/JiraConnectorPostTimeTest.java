@@ -101,6 +101,15 @@ class JiraConnectorPostTimeTest {
   }
 
   @Test
+  void postTime_cant_find_issue() {
+    when(jiraDb.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+
+    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
+        .isEqualTo(PostResult.PERMANENT_FAILURE)
+        .as("Can't post time because tag doesn't match any issue in Jira");
+  }
+
+  @Test
   void postTime_with_valid_group_should_succeed() {
     final Tag tag1 = fakeEntities.randomTag("/Jira");
     final Tag tag2 = fakeEntities.randomTag("/Jira");
@@ -130,9 +139,14 @@ class JiraConnectorPostTimeTest {
     when(templateFormatter.format(any(TimeGroup.class)))
         .thenReturn("Work log body");
 
-    ArgumentCaptor<Worklog> argumentCaptor = ArgumentCaptor.forClass(Worklog.class);
-    verify(jiraDb, times(2)).createWorklog(argumentCaptor.capture());
-    List<Worklog> createdWorklogs = argumentCaptor.getAllValues();
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .isEqualTo(PostResult.SUCCESS)
+        .as("Valid time group should be posted successfully");
+
+    // Verify worklog creation
+    ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDb, times(2)).createWorklog(worklogCaptor.capture());
+    List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
 
     assertThat(createdWorklogs.get(0).getIssueId())
         .isEqualTo(issue1.getId())
@@ -159,9 +173,20 @@ class JiraConnectorPostTimeTest {
         .as("The time worked should take into account the user's experience rating and" +
             "be split equally between the two tags");
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
-        .isEqualTo(PostResult.SUCCESS)
-        .as("Valid time group should be posted successfully");
+    ArgumentCaptor<Long> idUpdateIssueCaptor = ArgumentCaptor.forClass(Long.class);
+    ArgumentCaptor<Long> timeSpentUpdateIssueCaptor = ArgumentCaptor.forClass(Long.class);
+    verify(jiraDb, times(2))
+        .updateIssueTimeSpent(idUpdateIssueCaptor.capture(), timeSpentUpdateIssueCaptor.capture());
+
+    List<Long> updatedIssueIds = idUpdateIssueCaptor.getAllValues();
+    assertThat(updatedIssueIds)
+        .containsExactly(issue1.getId(), issue2.getId())
+        .as("Time spent of both matching issues should be updated");
+
+    List<Long> updatedIssueTimes = timeSpentUpdateIssueCaptor.getAllValues();
+    assertThat(updatedIssueTimes)
+        .containsExactly(issue1.getTimeSpent() + 250, issue2.getTimeSpent() + 250)
+        .as("Time spent of both matching issues should be updated with new duration");
   }
 
   private Request fakeRequest() {
