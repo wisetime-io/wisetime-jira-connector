@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -65,6 +66,7 @@ class JiraConnectorPostTimeTest {
 
   @BeforeEach
   void setUpTest() {
+    reset(templateFormatter);
     reset(jiraDb);
 
     // Ensure that code in the transaction lambda gets exercised
@@ -116,6 +118,25 @@ class JiraConnectorPostTimeTest {
         .as("Can't post time because tag doesn't match any issue in Jira");
 
     verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_db_transaction_error() {
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
+
+    when(jiraDb.findUsername(anyString()))
+        .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+
+    final Tag tag = fakeEntities.randomTag("/Jira");
+    final Issue issue = fakeEntities.randomIssue(tag.getName());
+
+    when(jiraDb.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
+    when(templateFormatter.format(any(TimeGroup.class))).thenReturn("Work log body");
+    doThrow(new RuntimeException("Test exception")).when(jiraDb).createWorklog(any(Worklog.class));
+
+    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
+        .isEqualTo(PostResult.TRANSIENT_FAILURE)
+        .as("Database transaction error while posting time should result in transient failure");
   }
 
   @Test

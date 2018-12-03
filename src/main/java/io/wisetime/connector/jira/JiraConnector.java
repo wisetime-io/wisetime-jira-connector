@@ -4,6 +4,9 @@
 
 package io.wisetime.connector.jira;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,6 +39,8 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  * @author shane.xie@practiceinsight.io
  */
 public class JiraConnector implements WiseTimeConnector {
+
+  private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
 
   // TODO Make these configurable
   private static String ABSOLUTE_TAG_PATH = "/Jira";
@@ -102,6 +107,8 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public PostResult postTime(Request request, TimeGroup userPostedTime) {
 
+    // TODO: Check caller key
+
     if (userPostedTime.getTags().size() == 0) {
       // Nothing to do
       return PostResult.SUCCESS;
@@ -119,43 +126,46 @@ public class JiraConnector implements WiseTimeConnector {
     }
 
     final String worklogBody = templateFormatter.format(userPostedTime);
-
     final long workedTime = Math.round(tagDurationSecs(userPostedTime));
 
-    jiraDb.asTransaction(() -> {
-      userPostedTime
-          .getTags()
-          .stream()
+    try {
+      jiraDb.asTransaction(() -> {
+        userPostedTime
+            .getTags()
+            .stream()
 
-          // Find matching Jira issue
-          .map(Tag::getName)
-          .map(jiraDb::findIssueByTagName)
+            // Find matching Jira issue
+            .map(Tag::getName)
+            .map(jiraDb::findIssueByTagName)
 
-          // Fail the transaction if one of the tags doesn't have a matching issue
-          .map(Optional::get)
+            // Fail the transaction if one of the tags doesn't have a matching issue
+            .map(Optional::get)
 
-          // Update issue time spent
-          .map(issue -> {
-            final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
-            jiraDb.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
-            return issue;
-          })
+            // Update issue time spent
+            .map(issue -> {
+              final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
+              jiraDb.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
+              return issue;
+            })
 
-          // Create worklog entry for issue
-          .forEach(issue -> {
-            final Worklog worklog = ImmutableWorklog
-                .builder()
-                .issueId(issue.getId())
-                .author(author.get())
-                .body(worklogBody)
-                .created(activityStartTime.get())
-                .timeWorked(workedTime)
-                .build();
+            // Create worklog entry for issue
+            .forEach(issue -> {
+              final Worklog worklog = ImmutableWorklog
+                  .builder()
+                  .issueId(issue.getId())
+                  .author(author.get())
+                  .body(worklogBody)
+                  .created(activityStartTime.get())
+                  .timeWorked(workedTime)
+                  .build();
 
-            jiraDb.createWorklog(worklog);
-          });
-    });
-
+              jiraDb.createWorklog(worklog);
+            });
+      });
+    } catch (RuntimeException e) {
+      log.error("Unable to post time to Jira", e);
+      return PostResult.TRANSIENT_FAILURE;
+    }
     return PostResult.SUCCESS;
   }
 
