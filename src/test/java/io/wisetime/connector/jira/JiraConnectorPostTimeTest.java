@@ -33,9 +33,11 @@ import spark.Request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -80,6 +82,8 @@ class JiraConnectorPostTimeTest {
     assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
         .isEqualTo(PostResult.SUCCESS)
         .as("There is nothing to post to Jira");
+
+    verifyJiraNotUpdated();
   }
 
   @Test
@@ -89,6 +93,8 @@ class JiraConnectorPostTimeTest {
     assertThat(connector.postTime(fakeRequest(), groupWithNoTimeRows))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
         .as("Group with no time is invalid");
+
+    verifyJiraNotUpdated();
   }
 
   @Test
@@ -98,6 +104,8 @@ class JiraConnectorPostTimeTest {
     assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
         .as("Can't post time because user doesn't exist in Jira");
+
+    verifyJiraNotUpdated();
   }
 
   @Test
@@ -107,6 +115,8 @@ class JiraConnectorPostTimeTest {
     assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
         .as("Can't post time because tag doesn't match any issue in Jira");
+
+    verifyJiraNotUpdated();
   }
 
   @Test
@@ -187,6 +197,11 @@ class JiraConnectorPostTimeTest {
     assertThat(updatedIssueTimes)
         .containsExactly(issue1.getTimeSpent() + 250, issue2.getTimeSpent() + 250)
         .as("Time spent of both matching issues should be updated with new duration");
+  }
+
+  private void verifyJiraNotUpdated() {
+    verify(jiraDb, never()).updateIssueTimeSpent(anyLong(), anyLong());
+    verify(jiraDb, never()).createWorklog(any(Worklog.class));
   }
 
   private Request fakeRequest() {
