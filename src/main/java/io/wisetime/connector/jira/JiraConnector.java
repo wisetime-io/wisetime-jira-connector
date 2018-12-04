@@ -4,9 +4,6 @@
 
 package io.wisetime.connector.jira;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +19,7 @@ import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
+import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
 import io.wisetime.connector.jira.database.JiraDb;
 import io.wisetime.connector.jira.models.ImmutableWorklog;
 import io.wisetime.connector.jira.models.Issue;
@@ -42,12 +40,12 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  */
 public class JiraConnector implements WiseTimeConnector {
 
-  private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
+  private static String TAG_UPSERT_PATH = RuntimeConfig
+      .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH).orElse("/Jira");
 
-  // TODO Make these configurable
-  private static String ABSOLUTE_TAG_PATH = "/Jira";
   // A large batch mitigates query round trip latency
-  private static int MAX_TAG_UPSERT_BATCH_SIZE = 500;
+  private static int TAG_UPSERT_BATCH_SIZE = RuntimeConfig
+      .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE).orElse(500);
 
   private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
 
@@ -76,7 +74,7 @@ public class JiraConnector implements WiseTimeConnector {
 
       final List<Issue> issues = jiraDb.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
-          MAX_TAG_UPSERT_BATCH_SIZE
+          TAG_UPSERT_BATCH_SIZE
       );
 
       if (issues.size() == 0) {
@@ -85,7 +83,7 @@ public class JiraConnector implements WiseTimeConnector {
         try {
           final List<UpsertTagRequest> upsertRequests = issues
               .stream()
-              .map(i -> i.toUpsertTagRequest(ABSOLUTE_TAG_PATH))
+              .map(i -> i.toUpsertTagRequest(TAG_UPSERT_PATH))
               .collect(Collectors.toList());
 
           apiClient.tagUpsertBatch(upsertRequests);
@@ -107,7 +105,7 @@ public class JiraConnector implements WiseTimeConnector {
    * Creates a Jira Worklog entry for the relevant issue.
    */
   @Override
-  public PostResult postTime(Request request, TimeGroup userPostedTime) {
+  public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
 
     final Optional<String> callerKey = RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
     if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {

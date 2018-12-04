@@ -11,12 +11,20 @@ In order to use the WiseTime Jira Connector, you will need a [WiseTime Connect](
 
 Configuration is done through environment variables. The following configuration options are required.
 
-| Environment Variable | Description                                     |
-| -------------------- | ----------------------------------------------- |
-| API_KEY              | Your WiseTime Connect API Key                   |
-| JIRA_JDBC_URL        | The JDBC URL for your Jira database             |
-| JIRA_DB_USER         | Username to use to connect to the Jira database |
-| JIRA_DB_PASSWORD     | Password to use to connect to the Jira database |
+| Environment Variable  | Description                                     |
+| --------------------  | ----------------------------------------------- |
+| API_KEY               | Your WiseTime Connect API Key                   |
+| JIRA_JDBC_URL         | The JDBC URL for your Jira database             |
+| JIRA_DB_USER          | Username to use to connect to the Jira database |
+| JIRA_DB_PASSWORD      | Password to use to connect to the Jira database |
+
+The followig configuration options are optional.
+
+| Environment Variable  | Description                                                                                                                             |
+| --------------------  | --------------------------------------------------------------------------------------------------------------------------------------- |
+| CALLER_KEY            | The caller key that WiseTime should provide with post time webhook calls. The connector does not authenticate Webhook calls if not set. |
+| TAG_UPSERT_PATH       | The tag folder path to use for Jira tags. Defaults to `/Jira`.                                                                          |
+| TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                     |
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 

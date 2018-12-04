@@ -19,12 +19,14 @@ import java.util.Optional;
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
+import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
 import io.wisetime.connector.jira.database.JiraDb;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.testutils.FakeEntities;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
+import static io.wisetime.connector.jira.testutils.RuntimeConfigHelper.setConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -34,7 +36,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -53,6 +54,9 @@ class JiraConnectorPerformTagUpdateTest {
 
   @BeforeAll
   static void setUp() {
+    setConfig(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path");
+    setConfig(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, 100);
+
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
     }).getInstance(JiraConnector.class);
@@ -97,14 +101,15 @@ class JiraConnectorPerformTagUpdateTest {
 
     when(connectorStore.getLong(anyString())).thenReturn(Optional.empty());
 
-    when(jiraDb.findIssuesOrderedById(anyLong(), anyInt()))
+    ArgumentCaptor<Integer> batchSize = ArgumentCaptor.forClass(Integer.class);
+    when(jiraDb.findIssuesOrderedById(anyLong(), batchSize.capture()))
         .thenReturn(ImmutableList.of(issue1, issue2))
         .thenReturn(ImmutableList.of());
 
     connector.performTagUpdate();
 
     ArgumentCaptor<List> upsertRequests = ArgumentCaptor.forClass(List.class);
-    verify(apiClient, only()).tagUpsertBatch(upsertRequests.capture());
+    verify(apiClient, times(1)).tagUpsertBatch(upsertRequests.capture());
 
     assertThat(upsertRequests.getValue())
         .containsExactly(
@@ -112,19 +117,22 @@ class JiraConnectorPerformTagUpdateTest {
                 .name(issue1.getProjectKey() + "-" + issue1.getIssueNumber())
                 .description(issue1.getSummary())
                 .additionalKeywords(ImmutableList.of(issue1.getProjectKey() + "-" + issue1.getIssueNumber()))
-                .path("/Jira"),
+                .path("/test/path"),
             new UpsertTagRequest()
                 .name(issue2.getProjectKey() + "-" + issue2.getIssueNumber())
                 .description(issue2.getSummary())
                 .additionalKeywords(ImmutableList.of(issue2.getProjectKey() + "-" + issue2.getIssueNumber()))
-                .path("/Jira")
+                .path("/test/path")
         )
-        .as("We should create tags for both new issues found");
+        .as("We should create tags for both new issues found, with the configured tag upsert path");
 
     ArgumentCaptor<String> storeKey = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Long> storeValue = ArgumentCaptor.forClass(Long.class);
     verify(connectorStore, times(1)).putLong(storeKey.capture(), storeValue.capture());
 
+    assertThat(batchSize.getValue())
+        .isEqualTo(100)
+        .as("The configured batch size should be used");
     assertThat(storeKey.getValue())
         .isEqualTo("last-synced-issue-id")
         .as("Last synced issue key is as configured");
