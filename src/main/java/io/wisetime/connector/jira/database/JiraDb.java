@@ -14,6 +14,8 @@ import org.codejargon.fluentjdbc.api.query.Query;
 import java.util.List;
 import java.util.Optional;
 
+import io.wisetime.connector.config.RuntimeConfig;
+import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.models.Worklog;
 
@@ -23,6 +25,8 @@ import io.wisetime.connector.jira.models.Worklog;
  * @author shane.xie@practiceinsight.io
  */
 public class JiraDb {
+
+  private final static String TIMEZONE = RuntimeConfig.getString(JiraConnectorConfigKey.TIMEZONE).orElse("UTC");
 
   @Inject
   private Query query;

@@ -25,6 +25,7 @@ The followig configuration options are optional.
 | CALLER_KEY            | The caller key that WiseTime should provide with post time webhook calls. The connector does not authenticate Webhook calls if not set. |
 | TAG_UPSERT_PATH       | The tag folder path to use for Jira tags. Defaults to `/Jira`.                                                                          |
 | TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                     |
+| TIMEZONE              | The timezone to use when posting time to Jira, e.g. `Australia/Perth`. Defaults to `UTC`.                                               |
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 

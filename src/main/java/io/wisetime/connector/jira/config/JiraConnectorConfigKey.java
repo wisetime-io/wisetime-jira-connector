@@ -13,8 +13,12 @@ import io.wisetime.connector.config.RuntimeConfigKey;
  */
 public enum JiraConnectorConfigKey implements RuntimeConfigKey {
 
+  JIRA_JDBC_URL("JIRA_JDBC_URL"),
+  JIRA_JDBC_USER("JIRA_JDBC_USER"),
+  JIRA_JDBC_PASSWORD("JIRA_JDBC_PASSWORD"),
   TAG_UPSERT_PATH("TAG_UPSERT_PATH"),
-  TAG_UPSERT_BATCH_SIZE("TAG_UPSERT_BATCH_SIZE");
+  TAG_UPSERT_BATCH_SIZE("TAG_UPSERT_BATCH_SIZE"),
+  TIMEZONE("TIMEZONE");
 
   private final String configKey;
 
