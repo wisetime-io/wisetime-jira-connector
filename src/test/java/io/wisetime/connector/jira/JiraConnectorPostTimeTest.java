@@ -18,6 +18,8 @@ import java.util.Optional;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.jira.database.JiraDb;
@@ -66,6 +68,7 @@ class JiraConnectorPostTimeTest {
 
   @BeforeEach
   void setUpTest() {
+    configureCallerKey("");
     reset(templateFormatter);
     reset(jiraDb);
 
@@ -83,6 +86,34 @@ class JiraConnectorPostTimeTest {
     assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
         .isEqualTo(PostResult.SUCCESS)
         .as("There is nothing to post to Jira");
+
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_with_invalid_caller_key_should_fail() {
+    configureCallerKey("caller-key");
+    final TimeGroup groupWithNoTags = fakeEntities.randomTimeGroup().tags(ImmutableList.of());
+
+    assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
+        .isEqualTo(PostResult.PERMANENT_FAILURE)
+        .as("Invalid caller key should result in post failure");
+
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_with_valid_caller_key_should_succeed() {
+    configureCallerKey("caller-key");
+
+    final TimeGroup groupWithNoTags = fakeEntities
+        .randomTimeGroup()
+        .callerKey("caller-key")
+        .tags(ImmutableList.of());
+
+    assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
+        .isEqualTo(PostResult.SUCCESS)
+        .as("Posting time with valid caller key should succeed");
 
     verifyJiraNotUpdated();
   }
@@ -223,6 +254,11 @@ class JiraConnectorPostTimeTest {
     assertThat(updatedIssueTimes)
         .containsExactly(issue1.getTimeSpent() + 250, issue2.getTimeSpent() + 250)
         .as("Time spent of both matching issues should be updated with new duration");
+  }
+
+  private void configureCallerKey(final String callerKey) {
+    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), callerKey);
+    RuntimeConfig.rebuild();
   }
 
   private void verifyJiraNotUpdated() {
