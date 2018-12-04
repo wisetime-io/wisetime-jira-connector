@@ -40,11 +40,11 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  */
 public class JiraConnector implements WiseTimeConnector {
 
-  private static String TAG_UPSERT_PATH = RuntimeConfig
+  private String TAG_UPSERT_PATH = RuntimeConfig
       .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH).orElse("/Jira");
 
   // A large batch mitigates query round trip latency
-  private static int TAG_UPSERT_BATCH_SIZE = RuntimeConfig
+  private int TAG_UPSERT_BATCH_SIZE = RuntimeConfig
       .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE).orElse(500);
 
   private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
