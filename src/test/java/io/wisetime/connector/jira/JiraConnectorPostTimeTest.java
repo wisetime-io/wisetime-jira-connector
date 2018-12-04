@@ -134,9 +134,15 @@ class JiraConnectorPostTimeTest {
     when(templateFormatter.format(any(TimeGroup.class))).thenReturn("Work log body");
     doThrow(new RuntimeException("Test exception")).when(jiraDb).createWorklog(any(Worklog.class));
 
-    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
+    final PostResult result = connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup());
+
+    assertThat(result)
         .isEqualTo(PostResult.TRANSIENT_FAILURE)
         .as("Database transaction error while posting time should result in transient failure");
+
+    assertThat(result.getError().get())
+        .isInstanceOf(RuntimeException.class)
+        .as("Post result should contain the cause of the error");
   }
 
   @Test

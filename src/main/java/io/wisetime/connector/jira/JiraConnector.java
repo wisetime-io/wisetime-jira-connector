@@ -17,6 +17,8 @@ import javax.inject.Inject;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
@@ -107,22 +109,29 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public PostResult postTime(Request request, TimeGroup userPostedTime) {
 
-    // TODO: Check caller key
+    final Optional<String> callerKey = RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
+    if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {
+      return PostResult.PERMANENT_FAILURE
+          .withMessage("Invalid caller key in post time webhook call");
+    }
 
     if (userPostedTime.getTags().size() == 0) {
       // Nothing to do
-      return PostResult.SUCCESS;
+      return PostResult.SUCCESS
+          .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
     final Optional<LocalDateTime> activityStartTime = timeGroupStartHour(userPostedTime);
     if (!activityStartTime.isPresent()) {
       // Invalid group with no time rows
-      return PostResult.PERMANENT_FAILURE;
+      return PostResult.PERMANENT_FAILURE
+          .withMessage("Cannot post time group with no time rows");
     }
 
     final Optional<String> author = jiraDb.findUsername(userPostedTime.getUser().getExternalId());
     if (!author.isPresent()) {
-      return PostResult.PERMANENT_FAILURE;
+      return PostResult.PERMANENT_FAILURE
+          .withMessage("User does not exist in Jira");
     }
 
     final String worklogBody = templateFormatter.format(userPostedTime);
@@ -163,8 +172,9 @@ public class JiraConnector implements WiseTimeConnector {
             });
       });
     } catch (RuntimeException e) {
-      log.error("Unable to post time to Jira", e);
-      return PostResult.TRANSIENT_FAILURE;
+      return PostResult.TRANSIENT_FAILURE
+          .withError(e)
+          .withMessage("There was an error posting time to the Jira database");
     }
     return PostResult.SUCCESS;
   }
