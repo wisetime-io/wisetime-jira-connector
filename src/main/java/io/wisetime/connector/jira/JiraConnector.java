@@ -178,7 +178,7 @@ public class JiraConnector implements WiseTimeConnector {
             .map(createWorklog)
 
             .forEach(issue ->
-                log.info("Posted time to Jira issue " + issue.getKey() + " on behalf of " + author.get())
+                log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get())
             )
       );
     } catch (RuntimeException e) {
