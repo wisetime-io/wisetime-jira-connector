@@ -11,11 +11,10 @@ import org.codejargon.fluentjdbc.api.FluentJdbcException;
 import org.codejargon.fluentjdbc.api.mapper.Mappers;
 import org.codejargon.fluentjdbc.api.query.Query;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
-import io.wisetime.connector.config.RuntimeConfig;
-import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.models.Worklog;
 
@@ -26,7 +25,8 @@ import io.wisetime.connector.jira.models.Worklog;
  */
 public class JiraDb {
 
-  private final static String TIMEZONE = RuntimeConfig.getString(JiraConnectorConfigKey.TIMEZONE).orElse("UTC");
+  @Inject
+  private ZoneId zoneId;
 
   @Inject
   private Query query;
