@@ -5,6 +5,7 @@
 package io.wisetime.connector.jira.database;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -17,6 +18,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.wisetime.connector.jira.models.ImmutableIssue;
 import io.wisetime.connector.jira.models.Issue;
@@ -28,7 +31,6 @@ import io.wisetime.connector.jira.models.Worklog;
  * @author shane.xie@practiceinsight.io
  */
 public class JiraDb {
-
 
   private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -42,9 +44,46 @@ public class JiraDb {
     query.transaction().inNoResult(runnable);
   }
 
+  @SuppressWarnings("BooleanExpressionComplexity")
   public boolean canUseDatabase() {
-    // TODO
-    return true;
+    boolean projectTableExists = doTableAndColumnsExist(
+        "jiraissue",
+        ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
+    );
+    boolean jiraIssueTableExists = doTableAndColumnsExist(
+        "project",
+        ImmutableSet.of("id", "pkey")
+    );
+    boolean userTableExists = doTableAndColumnsExist(
+        "cwd_user",
+        ImmutableSet.of("user_name", "lower_email_address")
+    );
+    boolean workLogTableExists = doTableAndColumnsExist(
+        "worklog",
+        ImmutableSet.of("id", "issueid", "author", "timeworked", "created", "worklogbody")
+    );
+    boolean seqValueItemTableExists = doTableAndColumnsExist(
+        "sequence_value_item",
+        ImmutableSet.of("seq_id", "seq_name")
+    );
+
+    return projectTableExists && jiraIssueTableExists && userTableExists && workLogTableExists && seqValueItemTableExists;
+  }
+
+  private Boolean doTableAndColumnsExist(String tableName, Set<String> columnNames) {
+    boolean hasTable = query.databaseInspection()
+        .selectFromMetaData(meta -> meta.getTables(null, null, null, null))
+        .listResult(rs -> rs.getString("TABLE_NAME"))
+        .stream()
+        .anyMatch(table -> table.equalsIgnoreCase(tableName));
+
+    boolean hasAllColumns = ImmutableSet.copyOf(
+        query.databaseInspection()
+            .selectFromMetaData(meta -> meta.getColumns(null, null, tableName.toUpperCase(), null))
+            .listResult(rs -> rs.getString("COLUMN_NAME")))
+        .containsAll(columnNames.stream().map(String::toUpperCase).collect(Collectors.toSet()));
+
+    return hasTable && hasAllColumns;
   }
 
   public Optional<Issue> findIssueByTagName(final String tagName) {

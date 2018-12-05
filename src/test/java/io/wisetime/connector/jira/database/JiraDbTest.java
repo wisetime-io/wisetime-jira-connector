@@ -53,6 +53,7 @@ class JiraDbTest {
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey(), "jdbc:h2:mem:test_jira_db;DB_CLOSE_DELAY=-1");
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_USER.getConfigKey(), "test");
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey(), "test");
+
     final Injector injector = Guice.createInjector(
         new JiraConnectorModule(), new FlyAwayJiraTestDbModule()
     );
@@ -80,7 +81,19 @@ class JiraDbTest {
 
   @Test
   void canUseDatabase() {
+    assertThat(jiraDb.canUseDatabase())
+        .as("flyaway should freshly applied the expected Jira DB schema")
+        .isTrue();
 
+    query.update("ALTER TABLE project DROP pkey").run();
+    assertThat(jiraDb.canUseDatabase())
+        .as("a missing column should be detected")
+        .isFalse();
+
+    query.update("ALTER TABLE project ADD COLUMN pkey varchar(255) null").run();
+    assertThat(jiraDb.canUseDatabase())
+        .as("the missing column has been added")
+        .isTrue();
   }
 
   @Test
