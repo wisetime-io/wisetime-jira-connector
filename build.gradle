@@ -84,6 +84,8 @@ dependencies {
     testCompile 'org.mockito:mockito-core:2.22.0'
     testCompile 'org.assertj:assertj-core:3.11.1'
     testCompile 'com.github.javafaker:javafaker:0.16'
+    testCompile 'org.flywaydb:flyway-core:5.1.1'
+    testRuntime 'com.h2database:h2:1.4.197'
 }
 
 test {
