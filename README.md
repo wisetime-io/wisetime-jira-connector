@@ -40,8 +40,8 @@ docker run -d \
     --restart=unless-stopped \
     -e API_KEY=yourwisetimeapikey \
     -e JIRA_JDBC_URL="jdbc:mysql://host:port/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false" \
-    -e JIRA_DB_USER=dbuser
-    -e JIRA_DB_PASSWORD=dbpass
+    -e JIRA_DB_USER=dbuser \
+    -e JIRA_DB_PASSWORD=dbpass \
     wisetime/jira-connector
 ```
 
