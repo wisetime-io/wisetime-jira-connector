@@ -47,7 +47,7 @@ public class JiraDb {
   }
 
   public boolean canUseDatabase() {
-    return doTableAndColumnsExist(
+    return hasCorrectSchema(
         ImmutableList.of(
             Pair.of(
                 "jiraissue",
@@ -73,12 +73,12 @@ public class JiraDb {
     );
   }
 
-  private boolean doTableAndColumnsExist(List<Pair<String, Set<String>>> tableAndColumnPairs) {
+  private boolean hasCorrectSchema(List<Pair<String, Set<String>>> tableAndColumnPairs) {
     return tableAndColumnPairs.stream()
-        .allMatch(tableColumnPair -> doTableAndColumnsExist(tableColumnPair.getKey(), tableColumnPair.getValue()));
+        .allMatch(tableColumnPair -> hasCorrectSchema(tableColumnPair.getKey(), tableColumnPair.getValue()));
   }
 
-  private boolean doTableAndColumnsExist(String tableName, Set<String> columnNames) {
+  private boolean hasCorrectSchema(String tableName, Set<String> columnNames) {
     boolean hasTable = query.databaseInspection()
         .selectFromMetaData(meta -> meta.getTables(null, null, null, null))
         .listResult(rs -> rs.getString("TABLE_NAME"))
