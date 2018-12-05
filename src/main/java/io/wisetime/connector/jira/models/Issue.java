@@ -30,12 +30,15 @@ public interface Issue {
 
   long getTimeSpent();
 
+  default String getKey() {
+    return format("%s-%s", getProjectKey(), getIssueNumber());
+  }
+
   default UpsertTagRequest toUpsertTagRequest(final String path) {
-    final String tagName = format("%s-%s", getProjectKey(), getIssueNumber());
     return new UpsertTagRequest()
-        .name(tagName)
+        .name(getKey())
         .description(getSummary())
         .path(path)
-        .additionalKeywords(ImmutableList.of(tagName));
+        .additionalKeywords(ImmutableList.of(getKey()));
   }
 }

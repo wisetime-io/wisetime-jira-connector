@@ -6,11 +6,13 @@ package io.wisetime.connector.jira;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -44,6 +46,7 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  */
 public class JiraConnector implements WiseTimeConnector {
 
+  private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
   private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
@@ -145,7 +148,7 @@ public class JiraConnector implements WiseTimeConnector {
       return issue;
     };
 
-    final Consumer<Issue> createWorklog = forIssue -> {
+    final Function<Issue, Issue> createWorklog = forIssue -> {
       final Worklog worklog = ImmutableWorklog
           .builder()
           .issueId(forIssue.getId())
@@ -156,6 +159,7 @@ public class JiraConnector implements WiseTimeConnector {
           .build();
 
       jiraDb.createWorklog(worklog);
+      return forIssue;
     };
 
     try {
@@ -171,7 +175,11 @@ public class JiraConnector implements WiseTimeConnector {
             .map(Optional::get)
 
             .map(updateIssueTimeSpent)
-            .forEach(createWorklog);
+            .map(createWorklog)
+
+            .forEach(issue ->
+                log.info("Posted time to Jira issue " + issue.getKey() + " on behalf of " + author.get())
+            );
       });
     } catch (RuntimeException e) {
       return PostResult.TRANSIENT_FAILURE
