@@ -121,14 +121,12 @@ public class JiraConnector implements WiseTimeConnector {
     }
 
     if (userPostedTime.getTags().size() == 0) {
-      // Nothing to do
       return PostResult.SUCCESS
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
     final Optional<LocalDateTime> activityStartTime = timeGroupStartHour(userPostedTime);
     if (!activityStartTime.isPresent()) {
-      // Invalid group with no time rows
       return PostResult.PERMANENT_FAILURE
           .withMessage("Cannot post time group with no time rows");
     }
