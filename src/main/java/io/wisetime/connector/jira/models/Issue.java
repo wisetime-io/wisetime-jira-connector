@@ -30,6 +30,10 @@ public interface Issue {
 
   long getTimeSpent();
 
+  /**
+   * A Jira issue key is made up of {projectKey}-{issueNumber}
+   * E.g. WT-1234
+   */
   default String getKey() {
     return format("%s-%s", getProjectKey(), getIssueNumber());
   }

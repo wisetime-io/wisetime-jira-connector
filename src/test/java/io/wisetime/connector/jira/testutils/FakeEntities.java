@@ -77,8 +77,8 @@ public class FakeEntities {
     return randomIssue(tag.getName());
   }
 
-  public Issue randomIssue(final String tagName) {
-    final String[] tagParts = tagName.split("-");
+  public Issue randomIssue(final String key) {
+    final String[] tagParts = key.split("-");
     Preconditions.checkArgument(tagParts.length == 2);
     return ImmutableIssue
         .builder()
