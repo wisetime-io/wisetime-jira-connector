@@ -5,6 +5,7 @@
 package io.wisetime.connector.jira.database;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 
@@ -29,6 +30,7 @@ import io.wisetime.connector.jira.models.Worklog;
  * Simple, unsophisticated access to the Jira database.
  *
  * @author shane.xie@practiceinsight.io
+ * @author alvin.llobrera@practiceinsight.io
  */
 public class JiraDb {
 
@@ -44,33 +46,39 @@ public class JiraDb {
     query.transaction().inNoResult(runnable);
   }
 
-  @SuppressWarnings("BooleanExpressionComplexity")
   public boolean canUseDatabase() {
-    boolean projectTableExists = doTableAndColumnsExist(
-        "jiraissue",
-        ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
+    return doTableAndColumnsExist(
+        ImmutableList.of(
+            Pair.of(
+                "jiraissue",
+                ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
+            ),
+            Pair.of(
+                "project",
+                ImmutableSet.of("id", "pkey")
+            ),
+            Pair.of(
+                "cwd_user",
+                ImmutableSet.of("user_name", "lower_email_address")
+            ),
+            Pair.of(
+                "worklog",
+                ImmutableSet.of("id", "issueid", "author", "timeworked", "created", "worklogbody")
+            ),
+            Pair.of(
+                "sequence_value_item",
+                ImmutableSet.of("seq_id", "seq_name")
+            )
+        )
     );
-    boolean jiraIssueTableExists = doTableAndColumnsExist(
-        "project",
-        ImmutableSet.of("id", "pkey")
-    );
-    boolean userTableExists = doTableAndColumnsExist(
-        "cwd_user",
-        ImmutableSet.of("user_name", "lower_email_address")
-    );
-    boolean workLogTableExists = doTableAndColumnsExist(
-        "worklog",
-        ImmutableSet.of("id", "issueid", "author", "timeworked", "created", "worklogbody")
-    );
-    boolean seqValueItemTableExists = doTableAndColumnsExist(
-        "sequence_value_item",
-        ImmutableSet.of("seq_id", "seq_name")
-    );
-
-    return projectTableExists && jiraIssueTableExists && userTableExists && workLogTableExists && seqValueItemTableExists;
   }
 
-  private Boolean doTableAndColumnsExist(String tableName, Set<String> columnNames) {
+  private boolean doTableAndColumnsExist(List<Pair<String, Set<String>>> tableAndColumnPairs) {
+    return tableAndColumnPairs.stream()
+        .allMatch(tableColumnPair -> doTableAndColumnsExist(tableColumnPair.getKey(), tableColumnPair.getValue()));
+  }
+
+  private boolean doTableAndColumnsExist(String tableName, Set<String> columnNames) {
     boolean hasTable = query.databaseInspection()
         .selectFromMetaData(meta -> meta.getTables(null, null, null, null))
         .listResult(rs -> rs.getString("TABLE_NAME"))
