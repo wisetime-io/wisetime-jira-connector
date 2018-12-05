@@ -4,6 +4,8 @@
 
 package io.wisetime.connector.jira;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,12 +16,12 @@ import javax.inject.Inject;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
-import io.wisetime.connector.config.ConnectorConfigKey;
-import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
-import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
+import io.wisetime.connector.jira.config.CallerKey;
+import io.wisetime.connector.jira.config.TagUpsertBatchSize;
+import io.wisetime.connector.jira.config.TagUpsertPath;
 import io.wisetime.connector.jira.database.JiraDb;
 import io.wisetime.connector.jira.models.ImmutableWorklog;
 import io.wisetime.connector.jira.models.Issue;
@@ -40,12 +42,17 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  */
 public class JiraConnector implements WiseTimeConnector {
 
-  private String TAG_UPSERT_PATH = RuntimeConfig
-      .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH).orElse("/Jira");
+  @Inject
+  @TagUpsertPath
+  private String tagUpsertPath;
 
-  // A large batch mitigates query round trip latency
-  private int TAG_UPSERT_BATCH_SIZE = RuntimeConfig
-      .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE).orElse(500);
+  @Inject
+  @TagUpsertBatchSize
+  private int tagUpsertBatchSize;
+
+  @Inject
+  @CallerKey
+  private Optional<String> callerKey;
 
   private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
 
@@ -74,7 +81,7 @@ public class JiraConnector implements WiseTimeConnector {
 
       final List<Issue> issues = jiraDb.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
-          TAG_UPSERT_BATCH_SIZE
+          tagUpsertBatchSize
       );
 
       if (issues.size() == 0) {
@@ -83,7 +90,7 @@ public class JiraConnector implements WiseTimeConnector {
         try {
           final List<UpsertTagRequest> upsertRequests = issues
               .stream()
-              .map(i -> i.toUpsertTagRequest(TAG_UPSERT_PATH))
+              .map(i -> i.toUpsertTagRequest(tagUpsertPath))
               .collect(Collectors.toList());
 
           apiClient.tagUpsertBatch(upsertRequests);
@@ -107,7 +114,6 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
 
-    final Optional<String> callerKey = RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
     if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Invalid caller key in post time webhook call");
@@ -180,5 +186,10 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public boolean isConnectorHealthy() {
     return jiraDb.canUseDatabase();
+  }
+
+  @VisibleForTesting
+  public void setCallerKey(final String callerKey) {
+    this.callerKey = Optional.of(callerKey);
   }
 }

@@ -10,7 +10,12 @@ import com.google.inject.Singleton;
 import org.codejargon.fluentjdbc.api.FluentJdbc;
 import org.codejargon.fluentjdbc.api.query.Query;
 
+import java.util.Optional;
+
 import javax.sql.DataSource;
+
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
 
 /**
  * Wire up application dependencies.
@@ -32,5 +37,28 @@ public class JiraConnectorModule extends AbstractModule {
     bind(Query.class)
         .toProvider(QueryProvider.class)
         .in(Singleton.class);
+
+    bind(Optional.class)
+        .annotatedWith(CallerKey.class)
+        .toProvider(() ->
+            RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY)
+        );
+
+    bind(String.class)
+        .annotatedWith(TagUpsertPath.class)
+        .toProvider(() ->
+            RuntimeConfig
+                .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH)
+                .orElse("/Jira")
+        );
+
+    bind(Integer.class)
+        .annotatedWith(TagUpsertBatchSize.class)
+        .toProvider(() ->
+            RuntimeConfig
+                .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
+                // A large batch mitigates query round trip latency
+                .orElse(500)
+        );
   }
 }

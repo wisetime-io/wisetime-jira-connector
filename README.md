@@ -4,6 +4,7 @@ The WiseTime Jira Connector connects [WiseTime](https://wisetime.io) to [Jira](h
 
 * Create a new WiseTime tag whenever a new Jira issue is created
 * Record a work log entry against the matching Jira issue whenever a user posts time to WiseTime
+* Update the Jira issue total worked time when posted time is received
 
 In order to use the WiseTime Jira Connector, you will need a [WiseTime Connect](https://wisetime.io/docs/connect/) API key. The WiseTime Jira Connector runs as a Docker container and is easy to set up and operate.
 

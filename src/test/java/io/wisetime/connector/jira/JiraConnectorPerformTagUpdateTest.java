@@ -6,6 +6,7 @@ package io.wisetime.connector.jira;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
+import com.google.inject.TypeLiteral;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,14 +20,15 @@ import java.util.Optional;
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
-import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
+import io.wisetime.connector.jira.config.CallerKey;
+import io.wisetime.connector.jira.config.TagUpsertBatchSize;
+import io.wisetime.connector.jira.config.TagUpsertPath;
 import io.wisetime.connector.jira.database.JiraDb;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.testutils.FakeEntities;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
-import static io.wisetime.connector.jira.testutils.RuntimeConfigHelper.setConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -54,11 +56,11 @@ class JiraConnectorPerformTagUpdateTest {
 
   @BeforeAll
   static void setUp() {
-    setConfig(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path");
-    setConfig(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, 100);
-
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
+      binder.bind(new TypeLiteral<Optional<String>>() {}).annotatedWith(CallerKey.class).toProvider(() -> Optional.empty());
+      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path");
+      binder.bind(Integer.class).annotatedWith(TagUpsertBatchSize.class).toProvider(() -> 100);
     }).getInstance(JiraConnector.class);
 
     connector.init(new ConnectorModule(apiClient, mock(TemplateFormatter.class), connectorStore));

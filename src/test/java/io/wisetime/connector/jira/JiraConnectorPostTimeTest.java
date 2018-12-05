@@ -6,6 +6,7 @@ package io.wisetime.connector.jira;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
+import com.google.inject.TypeLiteral;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +19,11 @@ import java.util.Optional;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
-import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
+import io.wisetime.connector.jira.config.CallerKey;
+import io.wisetime.connector.jira.config.TagUpsertBatchSize;
+import io.wisetime.connector.jira.config.TagUpsertPath;
 import io.wisetime.connector.jira.database.JiraDb;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.models.Worklog;
@@ -32,7 +35,6 @@ import io.wisetime.generated.connect.TimeRow;
 import io.wisetime.generated.connect.User;
 import spark.Request;
 
-import static io.wisetime.connector.jira.testutils.RuntimeConfigHelper.setConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -61,6 +63,9 @@ class JiraConnectorPostTimeTest {
   static void setUp() {
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
+      binder.bind(new TypeLiteral<Optional<String>>() {}).annotatedWith(CallerKey.class).toProvider(() -> Optional.empty());
+      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path");
+      binder.bind(Integer.class).annotatedWith(TagUpsertBatchSize.class).toProvider(() -> 100);
     }).getInstance(JiraConnector.class);
 
     connector.init(new ConnectorModule(apiClient, templateFormatter, mock(ConnectorStore.class)));
@@ -68,7 +73,6 @@ class JiraConnectorPostTimeTest {
 
   @BeforeEach
   void setUpTest() {
-    setConfig(ConnectorConfigKey.CALLER_KEY, "");
     reset(templateFormatter);
     reset(jiraDb);
 
@@ -92,8 +96,12 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_invalid_caller_key_should_fail() {
-    setConfig(ConnectorConfigKey.CALLER_KEY, "caller-key");
-    final TimeGroup groupWithNoTags = fakeEntities.randomTimeGroup().tags(ImmutableList.of());
+    connector.setCallerKey("caller-key");
+
+    final TimeGroup groupWithNoTags = fakeEntities
+        .randomTimeGroup()
+        .callerKey("wrong-key")
+        .tags(ImmutableList.of());
 
     assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
@@ -104,7 +112,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_valid_caller_key_should_succeed() {
-    setConfig(ConnectorConfigKey.CALLER_KEY, "caller-key");
+    connector.setCallerKey("caller-key");
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
