@@ -7,11 +7,9 @@ package io.wisetime.connector.jira.database;
 import com.google.common.base.Preconditions;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Key;
 
 import org.codejargon.fluentjdbc.api.query.Query;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,14 +35,13 @@ import io.wisetime.connector.jira.testutils.FakeEntities;
 import io.wisetime.connector.jira.testutils.FlyAwayJiraTestDbModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author shane.xie@practiceinsight.io
  */
 class JiraDbTest {
 
-  private static final FakeEntities fakeEntities = new FakeEntities();
+  private static final FakeEntities FAKE_ENTITIES = new FakeEntities();
   private static JiraDb jiraDb;
   private static Query query;
 
@@ -99,7 +96,7 @@ class JiraDbTest {
   @Test
   void findIssueByTagName() {
     Long projectId = 1L;
-    Issue issue = fakeEntities.randomIssue();
+    Issue issue = FAKE_ENTITIES.randomIssue();
 
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
@@ -122,7 +119,7 @@ class JiraDbTest {
   void findIssuesOrderedById() {
     final Long projectId = 1L;
     final String projectKey = "WT";
-    List<Issue> issues = fakeEntities.randomIssues(100);
+    List<Issue> issues = FAKE_ENTITIES.randomIssues(100);
 
     saveProject(projectId, projectKey);
     List<Issue> savedIssues = IntStream.range(0, issues.size())
@@ -171,7 +168,7 @@ class JiraDbTest {
   @Test
   void updateIssueTimeSpent() {
     Long projectId = 1L;
-    Issue issue = ImmutableIssue.builder().from(fakeEntities.randomIssue()).timeSpent(200).build();
+    Issue issue = ImmutableIssue.builder().from(FAKE_ENTITIES.randomIssue()).timeSpent(200).build();
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
 
@@ -184,7 +181,7 @@ class JiraDbTest {
 
   @Test
   void createWorklog_newRecord() {
-    Worklog workLogWithSydneyTz = fakeEntities.randomWorklog(ZoneId.of("Australia/Sydney"));
+    Worklog workLogWithSydneyTz = FAKE_ENTITIES.randomWorklog(ZoneId.of("Australia/Sydney"));
     Worklog workLogWithUtcTz = ImmutableWorklog.builder().from(workLogWithSydneyTz)
         .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
@@ -202,11 +199,11 @@ class JiraDbTest {
   @Test
   void createWorklog_withExistingWorklog() {
     // create work log
-    Worklog workLog1WithSydneyTz = fakeEntities.randomWorklog(ZoneId.of("Australia/Sydney"));
+    Worklog workLog1WithSydneyTz = FAKE_ENTITIES.randomWorklog(ZoneId.of("Australia/Sydney"));
     jiraDb.createWorklog(workLog1WithSydneyTz);
 
 
-    Worklog workLog2WithSydneyTz = fakeEntities.randomWorklog(ZoneId.of("Australia/Sydney"));
+    Worklog workLog2WithSydneyTz = FAKE_ENTITIES.randomWorklog(ZoneId.of("Australia/Sydney"));
     Worklog workLog2WithUtcTz = ImmutableWorklog.builder().from(workLog2WithSydneyTz)
         .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
