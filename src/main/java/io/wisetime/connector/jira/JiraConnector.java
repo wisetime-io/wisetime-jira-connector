@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -140,39 +142,39 @@ public class JiraConnector implements WiseTimeConnector {
     final String worklogBody = templateFormatter.format(userPostedTime);
     final long workedTime = Math.round(tagDurationSecs(userPostedTime));
 
+    final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
+      final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
+      jiraDb.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
+      return issue;
+    };
+
+    final Consumer<Issue> createWorklog = forIssue -> {
+      final Worklog worklog = ImmutableWorklog
+          .builder()
+          .issueId(forIssue.getId())
+          .author(author.get())
+          .body(worklogBody)
+          .created(activityStartTime.get())
+          .timeWorked(workedTime)
+          .build();
+
+      jiraDb.createWorklog(worklog);
+    };
+
     try {
       jiraDb.asTransaction(() -> {
         userPostedTime
             .getTags()
             .stream()
 
-            // Find matching Jira issue
             .map(Tag::getName)
             .map(jiraDb::findIssueByTagName)
 
             // Fail the transaction if one of the tags doesn't have a matching issue
             .map(Optional::get)
 
-            // Update issue time spent
-            .map(issue -> {
-              final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
-              jiraDb.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
-              return issue;
-            })
-
-            // Create worklog entry for issue
-            .forEach(issue -> {
-              final Worklog worklog = ImmutableWorklog
-                  .builder()
-                  .issueId(issue.getId())
-                  .author(author.get())
-                  .body(worklogBody)
-                  .created(activityStartTime.get())
-                  .timeWorked(workedTime)
-                  .build();
-
-              jiraDb.createWorklog(worklog);
-            });
+            .map(updateIssueTimeSpent)
+            .forEach(createWorklog);
       });
     } catch (RuntimeException e) {
       return PostResult.TRANSIENT_FAILURE
