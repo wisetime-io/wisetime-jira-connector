@@ -137,7 +137,6 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("User does not exist in Jira");
     }
 
-    final String worklogBody = templateFormatter.format(userPostedTime);
     final long workedTime = Math.round(tagDurationSecs(userPostedTime));
 
     final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
@@ -151,7 +150,7 @@ public class JiraConnector implements WiseTimeConnector {
           .builder()
           .issueId(forIssue.getId())
           .author(author.get())
-          .body(worklogBody)
+          .body(templateFormatter.format(userPostedTime))
           .created(activityStartTime.get())
           .timeWorked(workedTime)
           .build();
