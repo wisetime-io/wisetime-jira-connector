@@ -42,6 +42,14 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  */
 public class JiraConnector implements WiseTimeConnector {
 
+  private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
+  private ApiClient apiClient;
+  private ConnectorStore connectorStore;
+  private TemplateFormatter templateFormatter;
+
+  @Inject
+  private JiraDb jiraDb;
+
   @Inject
   @TagUpsertPath
   private String tagUpsertPath;
@@ -53,15 +61,6 @@ public class JiraConnector implements WiseTimeConnector {
   @Inject
   @CallerKey
   private Optional<String> callerKey;
-
-  private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
-
-  private ApiClient apiClient;
-  private ConnectorStore connectorStore;
-  private TemplateFormatter templateFormatter;
-
-  @Inject
-  private JiraDb jiraDb;
 
   @Override
   public void init(ConnectorModule connectorModule) {
