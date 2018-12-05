@@ -163,7 +163,7 @@ public class JiraConnector implements WiseTimeConnector {
     };
 
     try {
-      jiraDb.asTransaction(() -> {
+      jiraDb.asTransaction(() ->
         userPostedTime
             .getTags()
             .stream()
@@ -179,8 +179,8 @@ public class JiraConnector implements WiseTimeConnector {
 
             .forEach(issue ->
                 log.info("Posted time to Jira issue " + issue.getKey() + " on behalf of " + author.get())
-            );
-      });
+            )
+      );
     } catch (RuntimeException e) {
       return PostResult.TRANSIENT_FAILURE
           .withError(e)
