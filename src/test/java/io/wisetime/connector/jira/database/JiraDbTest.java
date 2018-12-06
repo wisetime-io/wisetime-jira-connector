@@ -279,23 +279,4 @@ class JiraDbTest {
             .build()
         );
   }
-
-// https://github.com/zsoltherpai/fluent-jdbc/wiki/Query-listener
-//
-//  AfterQueryListener listener = execution -> {
-//    if(execution.success()) {
-//        log.debug(
-//            String.format(
-//                "Query took %s ms to execute: %s",
-//                execution.executionTimeMs(),
-//                execution.sql()
-//            )
-//        )
-//    }
-//  };
-//
-//  FluentJdbc fluentJdbc = new FluentJdbcBuilder()
-//      // other configuration
-//      .afterQueryListener(listener)
-//      .build();
 }

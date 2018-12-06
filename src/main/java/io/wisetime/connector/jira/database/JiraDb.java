@@ -117,8 +117,7 @@ public class JiraDb {
             projectIssuePair.get().getLeft(),
             projectIssuePair.get().getRight()
         )
-        .firstResult(this::buildIssueFromResultSet
-        );
+        .firstResult(this::buildIssueFromResultSet);
   }
 
   public List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults) {
