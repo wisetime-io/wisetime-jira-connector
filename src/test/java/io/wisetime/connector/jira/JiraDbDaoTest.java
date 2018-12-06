@@ -2,17 +2,23 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
-package io.wisetime.connector.jira.database;
+package io.wisetime.connector.jira;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Provider;
 
 import com.github.javafaker.Faker;
 
 import org.codejargon.fluentjdbc.api.FluentJdbc;
+import org.codejargon.fluentjdbc.api.FluentJdbcBuilder;
 import org.codejargon.fluentjdbc.api.query.Query;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,23 +33,27 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import io.wisetime.connector.config.RuntimeConfig;
-import io.wisetime.connector.jira.JiraConnectorConfigKey;
-import io.wisetime.connector.jira.FakeEntities;
-import io.wisetime.connector.jira.FlywayJiraTestDbModule;
+import javax.sql.DataSource;
 
+import io.wisetime.connector.config.RuntimeConfig;
+import io.wisetime.generated.connect.UpsertTagRequest;
+
+import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
+import static io.wisetime.connector.jira.ConnectorLauncher.JiraDbModule;
+import static io.wisetime.connector.jira.JiraDbDao.Issue;
+import static io.wisetime.connector.jira.JiraDbDao.Worklog;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author shane.xie@practiceinsight.io
  * @author alvin.llobrera@practiceinsight.io
  */
-class JiraDbTest {
+class JiraDbDaoTest {
 
   private static final String TEST_JDBC_URL = "jdbc:h2:mem:test_jira_db;DB_CLOSE_DELAY=-1";
-  private static final FakeEntities FAKE_ENTITIES = new FakeEntities();
+  private static final RandomDataGenerator RANDOM_DATA_GENERATOR = new RandomDataGenerator();
   private static final Faker FAKER = new Faker();
-  private static JiraDb jiraDb;
+  private static JiraDbDao jiraDbDao;
   private static FluentJdbc fluentJdbc;
 
   @BeforeAll
@@ -57,14 +67,13 @@ class JiraDbTest {
         new JiraDbModule(), new FlywayJiraTestDbModule()
     );
 
-    jiraDb = injector.getInstance(JiraDb.class);
-    fluentJdbc = injector.getInstance(FluentJdbc.class);
+    jiraDbDao = injector.getInstance(JiraDbDao.class);
+    fluentJdbc = new FluentJdbcBuilder().connectionProvider(injector.getInstance(DataSource.class)).build();
 
 
     // Apply Jira DB schema to test db
     injector.getInstance(Flyway.class).migrate();
   }
-
 
 
   @BeforeAll
@@ -95,37 +104,51 @@ class JiraDbTest {
   }
 
   @Test
+  void toUpsertTagRequest() {
+    final Issue issue = RANDOM_DATA_GENERATOR.randomIssue();
+    final UpsertTagRequest request = issue.toUpsertTagRequest("/Jira/");
+    final String tagName = issue.getProjectKey() + "-" + issue.getIssueNumber();
+
+    assertThat(request)
+        .isEqualTo(new UpsertTagRequest()
+            .name(tagName)
+            .description(issue.getSummary())
+            .additionalKeywords(ImmutableList.of(tagName))
+            .path("/Jira/"));
+  }
+
+  @Test
   void hasExpectedSchema() {
-    assertThat(jiraDb.hasExpectedSchema())
+    assertThat(jiraDbDao.hasExpectedSchema())
         .as("Flyway should freshly applied the expected Jira DB schema")
         .isTrue();
 
     Query query = fluentJdbc.query();
     query.update("ALTER TABLE project DROP pkey").run();
-    assertThat(jiraDb.hasExpectedSchema())
+    assertThat(jiraDbDao.hasExpectedSchema())
         .as("A missing column should be detected")
         .isFalse();
 
     query.update("ALTER TABLE project ADD COLUMN pkey varchar(255) null").run();
-    assertThat(jiraDb.hasExpectedSchema())
+    assertThat(jiraDbDao.hasExpectedSchema())
         .as("The missing column has been added")
         .isTrue();
   }
 
   @Test
   void hasConfiguredTimeZone() {
-    assertThat(jiraDb.hasConfiguredTimeZone())
+    assertThat(jiraDbDao.hasConfiguredTimeZone())
         .as("No timezone is set")
         .isFalse();
 
     saveDefaultTimeZone(1, "Asia/Manila");
-    assertThat(jiraDb.hasConfiguredTimeZone())
+    assertThat(jiraDbDao.hasConfiguredTimeZone())
         .as("Timezone is set")
         .isTrue();
 
     removedDefaultTimeZone(1);
     saveDefaultTimeZone(1, "Asia/Perth");
-    assertThat(jiraDb.hasConfiguredTimeZone())
+    assertThat(jiraDbDao.hasConfiguredTimeZone())
         .as("Timezone is unrecognized")
         .isFalse();
   }
@@ -134,29 +157,29 @@ class JiraDbTest {
   void findIssueByTagName() {
     final Issue issue = insertRandomIssueToDb();
 
-    assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()))
+    assertThat(jiraDbDao.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()))
         .as("Should return Jira issue if it exists in DB")
         .contains(issue);
-    assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "X-" + issue.getIssueNumber()))
+    assertThat(jiraDbDao.findIssueByTagName(issue.getProjectKey() + "X-" + issue.getIssueNumber()))
         .as("Should return empty if tag name is not in DB")
         .isEmpty();
   }
 
   @Test
   void findIssueByTagName_incorrectFormat() {
-    assertThat(jiraDb.findIssueByTagName("IAMAJIRAISSUE")).isEmpty();
-    assertThat(jiraDb.findIssueByTagName("I-AM-A-JIRAISSUE")).isEmpty();
+    assertThat(jiraDbDao.findIssueByTagName("IAMAJIRAISSUE")).isEmpty();
+    assertThat(jiraDbDao.findIssueByTagName("I-AM-A-JIRAISSUE")).isEmpty();
   }
 
   @Test
   void findIssuesOrderedById() {
     final Long projectId = 1L;
     final String projectKey = "WT";
-    final List<Issue> issues = FAKE_ENTITIES.randomIssues(100);
+    final List<Issue> issues = RANDOM_DATA_GENERATOR.randomIssues(100);
 
     saveProject(projectId, projectKey);
     List<Issue> savedIssues = IntStream.range(0, issues.size())
-        .mapToObj(idx -> ImmutableIssue.builder()
+        .mapToObj(idx -> Issue.builder()
             .from(issues.get(idx))
             .id(idx + 1)  // ID should start at 1
             .projectKey(projectKey)
@@ -164,13 +187,13 @@ class JiraDbTest {
         .peek(issue -> saveJiraIssue(projectId, issue))
         .collect(Collectors.toList());
 
-    assertThat(jiraDb.findIssuesOrderedById(0, 100))
+    assertThat(jiraDbDao.findIssuesOrderedById(0, 100))
         .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues);
-    assertThat(jiraDb.findIssuesOrderedById(25, 5))
+    assertThat(jiraDbDao.findIssuesOrderedById(25, 5))
         .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues.subList(25, 30));
-    assertThat(jiraDb.findIssuesOrderedById(101, 5))
+    assertThat(jiraDbDao.findIssuesOrderedById(101, 5))
         .as("No Jira issue should be returned when no issue matches the start ID")
         .isEmpty();
   }
@@ -181,13 +204,13 @@ class JiraDbTest {
         .params("foobar", "foobar@baz.com")
         .run();
 
-    assertThat(jiraDb.findUsername("foobar@baz.com").get())
+    assertThat(jiraDbDao.findUsername("foobar@baz.com").get())
         .as("Username should be returned if it exists in DB.")
         .isEqualTo("foobar");
-    assertThat(jiraDb.findUsername("Foobar@baz.com").get())
+    assertThat(jiraDbDao.findUsername("Foobar@baz.com").get())
         .as("Email should not be case sensitive")
         .isEqualTo("foobar");
-    assertThat(jiraDb.findUsername("foo.bar@baz.com"))
+    assertThat(jiraDbDao.findUsername("foo.bar@baz.com"))
         .as("Should return empty if email is not found in DB")
         .isEmpty();
   }
@@ -195,13 +218,13 @@ class JiraDbTest {
   @Test
   void updateIssueTimeSpent() {
     final Long projectId = 1L;
-    final Issue issue = ImmutableIssue.builder().from(FAKE_ENTITIES.randomIssue()).timeSpent(200).build();
+    final Issue issue = Issue.builder().from(RANDOM_DATA_GENERATOR.randomIssue()).timeSpent(200).build();
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
 
-    jiraDb.updateIssueTimeSpent(issue.getId(), 700);
+    jiraDbDao.updateIssueTimeSpent(issue.getId(), 700);
 
-    assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()).get().getTimeSpent())
+    assertThat(jiraDbDao.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()).get().getTimeSpent())
         .as("Should be able to update total time spent")
         .isEqualTo(700);
   }
@@ -214,15 +237,15 @@ class JiraDbTest {
     // Specify timezone to use
     saveDefaultTimeZone(1, perthTz.getId());
 
-    Worklog workLogWithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
-    Worklog workLogWithPerthTz = ImmutableWorklog.builder().from(workLogWithSydneyTz)
+    Worklog workLogWithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
+    Worklog workLogWithPerthTz = Worklog.builder().from(workLogWithSydneyTz)
         .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
 
-    final Optional<Long> startingWorklogId = jiraDb.getWorklogSeqId();
+    final Optional<Long> startingWorklogId = jiraDbDao.getWorklogSeqId();
     assertThat(startingWorklogId).isEmpty();
 
-    jiraDb.createWorklog(workLogWithSydneyTz);
+    jiraDbDao.createWorklog(workLogWithSydneyTz);
 
     assertThat(getWorklog(10299).get()) // 10299 is the starting worklog seq id we set if table is empty
         .as("Worklog should be saved with created time set the zone specified")
@@ -238,19 +261,19 @@ class JiraDbTest {
     saveDefaultTimeZone(1, perthTz.getId());
 
     // Create worklog
-    final Worklog workLog1WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
-    jiraDb.createWorklog(workLog1WithSydneyTz);
+    final Worklog workLog1WithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
+    jiraDbDao.createWorklog(workLog1WithSydneyTz);
 
-    Worklog workLog2WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
-    Worklog workLog2WithPerthTz = ImmutableWorklog.builder().from(workLog2WithSydneyTz)
+    Worklog workLog2WithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
+    Worklog workLog2WithPerthTz = Worklog.builder().from(workLog2WithSydneyTz)
         .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), perthTz).toLocalDateTime().withNano(0))
         .build();
-    final Optional<Long> currentWorkLogId = jiraDb.getWorklogSeqId();
+    final Optional<Long> currentWorkLogId = jiraDbDao.getWorklogSeqId();
     assertThat(currentWorkLogId)
         .as("Should contain the worklog ID of the previously created worklog")
         .isPresent();
 
-    jiraDb.createWorklog(workLog2WithSydneyTz);
+    jiraDbDao.createWorklog(workLog2WithSydneyTz);
 
     assertThat(getWorklog(currentWorkLogId.get() + 199).get()) // we increment 199 to generate new worklog seq ID
         .as("Worklog should be saved with created time set in the timezone specified")
@@ -277,7 +300,7 @@ class JiraDbTest {
 
   private Issue insertRandomIssueToDb() {
     final Long projectId = FAKER.number().randomNumber();
-    final Issue issue = FAKE_ENTITIES.randomIssue();
+    final Issue issue = RANDOM_DATA_GENERATOR.randomIssue();
 
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
@@ -287,7 +310,7 @@ class JiraDbTest {
   private Optional<Worklog> getWorklog(final long worklogId) {
     return fluentJdbc.query().select("SELECT issueid, author, timeworked, created, worklogbody FROM worklog WHERE id = ?")
         .params(worklogId)
-        .firstResult(resultSet -> ImmutableWorklog.builder()
+        .firstResult(resultSet -> Worklog.builder()
             .issueId(resultSet.getLong(1))
             .author(resultSet.getString(2))
             .timeWorked(resultSet.getLong(3))
@@ -312,4 +335,29 @@ class JiraDbTest {
     fluentJdbc.query().update("DELETE FROM propertyentry WHERE property_key = 'jira.default.timezone'").run();
     fluentJdbc.query().update("DELETE FROM propertystring WHERE id = ?").params(id).run();
   }
+
+  public static class FlywayJiraTestDbModule extends AbstractModule {
+
+    @Override
+    protected void configure() {
+      bind(Flyway.class).toProvider(FlywayJiraProvider.class);
+    }
+
+    private static class FlywayJiraProvider implements Provider<Flyway> {
+
+      @Inject
+      private Provider<DataSource> dataSourceProvider;
+
+      @Override
+      public Flyway get() {
+        Flyway flyway = new Flyway();
+        flyway.setDataSource(dataSourceProvider.get());
+        flyway.setBaselineVersion(MigrationVersion.fromVersion("0"));
+        flyway.setBaselineOnMigrate(true);
+        flyway.setLocations("jira_db_schema/");
+        return flyway;
+      }
+    }
+  }
+
 }

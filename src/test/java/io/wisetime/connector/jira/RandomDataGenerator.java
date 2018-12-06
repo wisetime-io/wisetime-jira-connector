@@ -16,24 +16,23 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import io.wisetime.connector.jira.database.ImmutableIssue;
-import io.wisetime.connector.jira.database.ImmutableWorklog;
-import io.wisetime.connector.jira.database.Issue;
-import io.wisetime.connector.jira.database.Worklog;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
 import io.wisetime.generated.connect.User;
 
+import static io.wisetime.connector.jira.JiraDbDao.Issue;
+import static io.wisetime.connector.jira.JiraDbDao.Worklog;
+
 /**
  * @author shane.xie@practiceinsight.io
  */
-public class FakeEntities {
+class RandomDataGenerator {
 
   private static final Faker FAKER = new Faker();
   private static final String TAG_PATH = "/Jira/";
 
-  public TimeGroup randomTimeGroup() {
+  TimeGroup randomTimeGroup() {
     final List<TimeRow> timeRows = randomEntities(() -> randomTimeRow(), 1, 10);
 
     return new TimeGroup()
@@ -49,14 +48,14 @@ public class FakeEntities {
         .durationSplitStrategy(randomEnum(TimeGroup.DurationSplitStrategyEnum.class));
   }
 
-  public Tag randomTag(final String path) {
+  Tag randomTag(final String path) {
     return new Tag()
         .path(path)
         .name(FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999))
         .description(FAKER.gameOfThrones().character());
   }
 
-  public User randomUser() {
+  User randomUser() {
     final String firstName = FAKER.name().firstName();
     final String lastName = FAKER.name().lastName();
     return new User()
@@ -67,7 +66,7 @@ public class FakeEntities {
         .experienceWeightingPercent(FAKER.random().nextInt(0, 100));
   }
 
-  public TimeRow randomTimeRow() {
+  TimeRow randomTimeRow() {
     return new TimeRow()
         .activity(FAKER.company().catchPhrase())
         .activityHour(2018110100 + FAKER.random().nextInt(1, 23))
@@ -77,15 +76,15 @@ public class FakeEntities {
         .source(randomEnum(TimeRow.SourceEnum.class));
   }
 
-  public Issue randomIssue() {
+  Issue randomIssue() {
     final Tag tag = randomTag(TAG_PATH);
     return randomIssue(tag.getName());
   }
 
-  public Issue randomIssue(final String key) {
+  Issue randomIssue(final String key) {
     final String[] tagParts = key.split("-");
     Preconditions.checkArgument(tagParts.length == 2);
-    return ImmutableIssue
+    return Issue
         .builder()
         .id(FAKER.random().nextInt(1, 999999))
         .projectKey(tagParts[0])
@@ -95,12 +94,12 @@ public class FakeEntities {
         .build();
   }
 
-  public List<Issue> randomIssues(int count) {
+  List<Issue> randomIssues(int count) {
     return randomEntities(this::randomIssue, count, count);
   }
 
-  public Worklog randomWorklog(ZoneId zoneId) {
-    return ImmutableWorklog.builder()
+  Worklog randomWorklog(ZoneId zoneId) {
+    return Worklog.builder()
         .author(FAKER.internet().emailAddress())
         .body(FAKER.book().title())
         .timeWorked(FAKER.random().nextInt(120, 3600))

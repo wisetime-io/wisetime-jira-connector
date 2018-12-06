@@ -2,25 +2,27 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
-package io.wisetime.connector.jira.database;
+package io.wisetime.connector.jira;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.codejargon.fluentjdbc.api.FluentJdbc;
+import org.codejargon.fluentjdbc.api.FluentJdbcBuilder;
 import org.codejargon.fluentjdbc.api.FluentJdbcException;
 import org.codejargon.fluentjdbc.api.mapper.Mappers;
 import org.codejargon.fluentjdbc.api.query.Query;
+import org.immutables.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -30,6 +32,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.sql.DataSource;
+
+import io.wisetime.generated.connect.UpsertTagRequest;
+
+import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
@@ -40,20 +47,22 @@ import static java.util.stream.Collectors.toList;
  * @author shane.xie@practiceinsight.io
  * @author alvin.llobrera@practiceinsight.io
  */
-public class JiraDb {
-
-  private final Logger log = LoggerFactory.getLogger(JiraDb.class);
-
-  private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+class JiraDbDao {
+  private final Logger log = LoggerFactory.getLogger(JiraDbDao.class);
+  private final DateTimeFormatter dateTimeFormatter;
+  private final FluentJdbc fluentJdbc;
 
   @Inject
-  private Provider<FluentJdbc> jdbcProvider;
+  JiraDbDao(DataSource dataSource) {
+    fluentJdbc = new FluentJdbcBuilder().connectionProvider(dataSource).build();
+    dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+  }
 
-  public void asTransaction(final Runnable runnable) {
+  void asTransaction(final Runnable runnable) {
     query().transaction().inNoResult(runnable);
   }
 
-  public boolean hasExpectedSchema() {
+  boolean hasExpectedSchema() {
     final Query query = query();
 
     final Map<String, Set<String>> requiredTablesAndColumnsMap = Maps.newHashMap();
@@ -101,7 +110,7 @@ public class JiraDb {
         );
   }
 
-  public boolean hasConfiguredTimeZone() {
+  boolean hasConfiguredTimeZone() {
     try {
       getJiraDefaultTimeZone();
       // If above query did not fail, it means we can connect to Jira DB and we can insert worklog with correct timezone
@@ -111,7 +120,7 @@ public class JiraDb {
     }
   }
 
-  public Optional<Issue> findIssueByTagName(final String tagName) {
+  Optional<Issue> findIssueByTagName(final String tagName) {
     return getJiraProjectIssuePair(tagName)
         .flatMap(projectIssuePair ->
             query().select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
@@ -125,7 +134,7 @@ public class JiraDb {
         );
   }
 
-  public List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults) {
+  List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults) {
     return query().select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
         + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
         + "WHERE jiraissue.id > ? ORDER BY ID ASC LIMIT ?;")
@@ -136,23 +145,23 @@ public class JiraDb {
         .listResult(this::buildIssueFromResultSet);
   }
 
-  public Optional<String> findUsername(final String email) {
+  Optional<String> findUsername(final String email) {
     return query().select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
         .namedParam("email", email.toLowerCase())
         .firstResult(Mappers.singleString());
   }
 
-  public void updateIssueTimeSpent(final long issueId, final long duration) {
+  void updateIssueTimeSpent(final long issueId, final long duration) {
     query().update("UPDATE jiraissue SET timespent = :totalTimeSpent WHERE id = :jiraIssueId")
         .namedParam("totalTimeSpent", duration)
         .namedParam("jiraIssueId", issueId)
         .run();
   }
 
-  public void createWorklog(final Worklog worklog) {
+  void createWorklog(final Worklog worklog) {
     // Add 199 to the current seq ID (or 10100 as base point if no work log id is not yet set)
     // to make sure the new seq ID is not used by the connected Jira system
-    Long nextSeqId = getWorklogSeqId().orElse(10100L) + 199L;
+    long nextSeqId = getWorklogSeqId().orElse(10_100L) + 199L;
 
     query().update("INSERT INTO worklog (id, issueid, author, timeworked, created, worklogbody) "
         + "VALUES (:sequenceId, :jiraIssueId, :jiraUsername, :timeSpent, :createdDate, :comment);")
@@ -179,7 +188,6 @@ public class JiraDb {
     }
   }
 
-  @VisibleForTesting
   Optional<Long> getWorklogSeqId() {
     try {
       final long seqId = query().select("SELECT seq_id FROM sequence_value_item WHERE seq_name='Worklog'")
@@ -213,8 +221,8 @@ public class JiraDb {
     return ZoneId.of(timeZone);
   }
 
-  private ImmutableIssue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {
-    return ImmutableIssue.builder()
+  private Issue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {
+    return Issue.builder()
         .id(resultSet.getLong("jiraissue.id"))
         .projectKey(resultSet.getString("project.pkey"))
         .issueNumber(resultSet.getString("jiraissue.issuenum"))
@@ -237,7 +245,70 @@ public class JiraDb {
   }
 
   private Query query() {
-    return jdbcProvider.get().query();
+    return fluentJdbc.query();
+  }
+
+
+  /**
+   * Models a Jira issue.
+   *
+   * @author shane.xie@practiceinsight.io
+   */
+  @Value.Immutable
+  public interface Issue {
+
+    long getId();
+
+    String getProjectKey();
+
+    String getIssueNumber();
+
+    String getSummary();
+
+    long getTimeSpent();
+
+    /**
+     * A Jira issue key is made up of {projectKey}-{issueNumber} E.g. WT-1234
+     */
+    default String getKey() {
+      return format("%s-%s", getProjectKey(), getIssueNumber());
+    }
+
+    default UpsertTagRequest toUpsertTagRequest(final String path) {
+      return new UpsertTagRequest()
+          .name(getKey())
+          .description(getSummary())
+          .path(path)
+          .additionalKeywords(ImmutableList.of(getKey()));
+    }
+
+    static ImmutableIssue.Builder builder() {
+      return ImmutableIssue.builder();
+    }
+  }
+
+  /**
+   * Models a Jira Worklog.
+   *
+   * @author shane.xie@practiceinsight.io
+   */
+  @Value.Immutable
+  public interface Worklog {
+
+    long getIssueId();
+
+    String getAuthor();
+
+    long getTimeWorked();
+
+    LocalDateTime getCreated();
+
+    String getBody();
+
+    static ImmutableWorklog.Builder builder() {
+      return ImmutableWorklog.builder();
+    }
+
   }
 
 }

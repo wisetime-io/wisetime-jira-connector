@@ -2,17 +2,16 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
-package io.wisetime.connector.jira.utils;
+package io.wisetime.connector.jira;
 
 import com.google.common.collect.ImmutableList;
 
 import org.junit.jupiter.api.Test;
 
-import io.wisetime.connector.jira.FakeEntities;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.User;
 
-import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDurationSecs;
+import static io.wisetime.connector.jira.JiraConnector.tagDurationSecs;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -20,11 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TagDurationCalculatorTest {
 
-  private final FakeEntities fakeEntities = new FakeEntities();
+  private final RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
 
   @Test
   void tagDurationSecs_no_tags() {
-    final TimeGroup timeGroupWithNoTags = fakeEntities.randomTimeGroup().tags(ImmutableList.of());
+    final TimeGroup timeGroupWithNoTags = randomDataGenerator.randomTimeGroup().tags(ImmutableList.of());
 
     assertThat(tagDurationSecs(timeGroupWithNoTags))
         .isEqualTo(0)
@@ -33,8 +32,8 @@ class TagDurationCalculatorTest {
 
   @Test
   void tagDurationSecs_zero_experience_rating() {
-    final User userWithNoExperience = fakeEntities.randomUser().experienceWeightingPercent(0);
-    final TimeGroup timeGroup = fakeEntities.randomTimeGroup().user(userWithNoExperience);
+    final User userWithNoExperience = randomDataGenerator.randomUser().experienceWeightingPercent(0);
+    final TimeGroup timeGroup = randomDataGenerator.randomTimeGroup().user(userWithNoExperience);
 
     assertThat(tagDurationSecs(timeGroup))
         .isEqualTo(0)
@@ -43,8 +42,8 @@ class TagDurationCalculatorTest {
 
   @Test
   void tagDurationSecs_divide_between_tags() {
-    final User user = fakeEntities.randomUser().experienceWeightingPercent(10);
-    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+    final User user = randomDataGenerator.randomUser().experienceWeightingPercent(10);
+    final TimeGroup timeGroup = randomDataGenerator.randomTimeGroup()
         .user(user)
         .totalDurationSecs(105)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS);
@@ -57,8 +56,8 @@ class TagDurationCalculatorTest {
 
   @Test
   void tagDurationSecs_whole_duration_to_each_tag() {
-    final User user = fakeEntities.randomUser().experienceWeightingPercent(10);
-    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+    final User user = randomDataGenerator.randomUser().experienceWeightingPercent(10);
+    final TimeGroup timeGroup = randomDataGenerator.randomTimeGroup()
         .user(user)
         .totalDurationSecs(100)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG);

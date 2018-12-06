@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -25,39 +26,38 @@ import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
-import io.wisetime.connector.jira.database.ImmutableWorklog;
-import io.wisetime.connector.jira.database.Issue;
-import io.wisetime.connector.jira.database.JiraDb;
-import io.wisetime.connector.jira.database.Worklog;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
+import io.wisetime.generated.connect.TimeRow;
 import io.wisetime.generated.connect.UpsertTagRequest;
 import spark.Request;
 
-import static io.wisetime.connector.jira.utils.ActivityTimeCalculator.timeGroupStartHour;
-import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDurationSecs;
+import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
+import static io.wisetime.connector.jira.JiraDbDao.Issue;
+import static io.wisetime.connector.jira.JiraDbDao.Worklog;
 
 /**
  * WiseTime Connector implementation for Jira.
  *
  * @author shane.xie@practiceinsight.io
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
+  private static final DateTimeFormatter ACTIVITY_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHH");
+
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
   private TemplateFormatter templateFormatter;
 
   @Inject
-  private JiraDb jiraDb;
+  private JiraDbDao jiraDbDao;
 
   @Override
   public void init(final ConnectorModule connectorModule) {
-    Preconditions.checkArgument(jiraDb.hasExpectedSchema(),
+    Preconditions.checkArgument(jiraDbDao.hasExpectedSchema(),
         "Jira Database schema is unsupported by this connector");
 
     this.apiClient = connectorModule.getApiClient();
@@ -74,7 +74,7 @@ public class JiraConnector implements WiseTimeConnector {
     while (true) {
       final Optional<Long> lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY);
 
-      final List<Issue> issues = jiraDb.findIssuesOrderedById(
+      final List<Issue> issues = jiraDbDao.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
           tagUpsertBatchSize()
       );
@@ -125,7 +125,7 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Cannot post time group with no time rows");
     }
 
-    final Optional<String> author = jiraDb.findUsername(userPostedTime.getUser().getExternalId());
+    final Optional<String> author = jiraDbDao.findUsername(userPostedTime.getUser().getExternalId());
     if (!author.isPresent()) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("User does not exist in Jira");
@@ -135,12 +135,12 @@ public class JiraConnector implements WiseTimeConnector {
 
     final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
       final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
-      jiraDb.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
+      jiraDbDao.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
       return issue;
     };
 
     final Function<Issue, Issue> createWorklog = forIssue -> {
-      final Worklog worklog = ImmutableWorklog
+      final Worklog worklog = Worklog
           .builder()
           .issueId(forIssue.getId())
           .author(author.get())
@@ -149,18 +149,18 @@ public class JiraConnector implements WiseTimeConnector {
           .timeWorked(workedTime)
           .build();
 
-      jiraDb.createWorklog(worklog);
+      jiraDbDao.createWorklog(worklog);
       return forIssue;
     };
 
     try {
-      jiraDb.asTransaction(() ->
+      jiraDbDao.asTransaction(() ->
           userPostedTime
               .getTags()
               .stream()
 
               .map(Tag::getName)
-              .map(jiraDb::findIssueByTagName)
+              .map(jiraDbDao::findIssueByTagName)
 
               // Fail the transaction if one of the tags doesn't have a matching issue
               .map(Optional::get)
@@ -182,7 +182,23 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDb.hasConfiguredTimeZone();
+    return jiraDbDao.hasConfiguredTimeZone();
+  }
+
+  static double tagDurationSecs(final TimeGroup timeGroup) {
+    if (timeGroup.getTags().isEmpty()) {
+      return 0;
+    }
+    final double durationWithExperienceRating =
+        timeGroup.getTotalDurationSecs() * timeGroup.getUser().getExperienceWeightingPercent() / 100.;
+
+    switch (timeGroup.getDurationSplitStrategy()) {
+      case WHOLE_DURATION_TO_EACH_TAG:
+        return durationWithExperienceRating;
+      case DIVIDE_BETWEEN_TAGS:
+      default:
+        return durationWithExperienceRating / timeGroup.getTags().size();
+    }
   }
 
   private int tagUpsertBatchSize() {
@@ -201,5 +217,15 @@ public class JiraConnector implements WiseTimeConnector {
   private Optional<String> callerKey() {
     return RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
   }
+
+  private Optional<LocalDateTime> timeGroupStartHour(final TimeGroup timeGroup) {
+    return timeGroup
+        .getTimeRows()
+        .stream()
+        .map(TimeRow::getActivityHour)
+        .min(Integer::compareTo)
+        .map(hour -> LocalDateTime.parse(String.valueOf(hour), ACTIVITY_HOUR_FORMATTER));
+  }
+
 
 }
