@@ -44,14 +44,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JiraDbTest {
 
-  private static final Faker FAKER = new Faker();
+  private static final String TEST_JDBC_URL = "jdbc:h2:mem:test_jira_db;DB_CLOSE_DELAY=-1";
   private static final FakeEntities FAKE_ENTITIES = new FakeEntities();
+  private static final Faker FAKER = new Faker();
   private static JiraDb jiraDb;
   private static Query query;
 
   @BeforeAll
   static void setup() {
-    System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey(), "jdbc:h2:mem:test_jira_db;DB_CLOSE_DELAY=-1");
+    System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey(), TEST_JDBC_URL);
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_USER.getConfigKey(), "test");
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey(), "test");
 
@@ -62,17 +63,16 @@ class JiraDbTest {
     jiraDb = injector.getInstance(JiraDb.class);
     query = injector.getInstance(Query.class);
 
-    // Apply Jira DB schema update to test db
+    // Apply Jira DB schema to test db
     injector.getInstance(Flyway.class).migrate();
   }
 
   @BeforeEach
   void setupTests() {
     Preconditions.checkState(
-        RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_JDBC_URL).orElse("")
-            .equals("jdbc:h2:mem:test_jira_db;DB_CLOSE_DELAY=-1")
+        // We don't want to accidentally truncate production tables
+        RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_JDBC_URL).orElse("").equals(TEST_JDBC_URL)
     );
-
     query.update("DELETE FROM project").run();
     query.update("DELETE FROM jiraissue").run();
     query.update("DELETE FROM cwd_user").run();
@@ -85,47 +85,47 @@ class JiraDbTest {
   @Test
   void hasExpectedSchema() {
     assertThat(jiraDb.hasExpectedSchema())
-        .as("flyway should freshly applied the expected Jira DB schema")
+        .as("Flyway should freshly applied the expected Jira DB schema")
         .isTrue();
 
     query.update("ALTER TABLE project DROP pkey").run();
     assertThat(jiraDb.hasExpectedSchema())
-        .as("a missing column should be detected")
+        .as("A missing column should be detected")
         .isFalse();
 
     query.update("ALTER TABLE project ADD COLUMN pkey varchar(255) null").run();
     assertThat(jiraDb.hasExpectedSchema())
-        .as("the missing column has been added")
+        .as("The missing column has been added")
         .isTrue();
   }
 
   @Test
   void hasConfiguredTimeZone() {
     assertThat(jiraDb.hasConfiguredTimeZone())
-        .as("no time zone is set")
+        .as("No timezone is set")
         .isFalse();
 
     saveDefaultTimeZone(1, "Asia/Manila");
     assertThat(jiraDb.hasConfiguredTimeZone())
-        .as("time zone is set")
+        .as("Timezone is set")
         .isTrue();
 
     removedDefaultTimeZone(1);
     saveDefaultTimeZone(1, "Asia/Perth");
     assertThat(jiraDb.hasConfiguredTimeZone())
-        .as("time zone is unrecognized")
+        .as("Timezone is unrecognized")
         .isFalse();
   }
 
   @Test
   void findIssueByTagName() {
-    Issue issue = insertRandomIssueToDb();
+    final Issue issue = insertRandomIssueToDb();
 
     assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()))
-        .as("should return Jira issue if existing in DB")
+        .as("Should return Jira issue if it exists in DB")
         .contains(issue);
     assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "X-" + issue.getIssueNumber()))
-        .as("should return empty if tag name is not in DB")
+        .as("Should return empty if tag name is not in DB")
         .isEmpty();
   }
 
@@ -139,26 +139,26 @@ class JiraDbTest {
   void findIssuesOrderedById() {
     final Long projectId = 1L;
     final String projectKey = "WT";
-    List<Issue> issues = FAKE_ENTITIES.randomIssues(100);
+    final List<Issue> issues = FAKE_ENTITIES.randomIssues(100);
 
     saveProject(projectId, projectKey);
     List<Issue> savedIssues = IntStream.range(0, issues.size())
         .mapToObj(idx -> ImmutableIssue.builder()
             .from(issues.get(idx))
-            .id(idx + 1) // id starts in 1
+            .id(idx + 1)  // ID should start at 1
             .projectKey(projectKey)
             .build())
         .peek(issue -> saveJiraIssue(projectId, issue))
         .collect(Collectors.toList());
 
     assertThat(jiraDb.findIssuesOrderedById(0, 100))
-        .as("should be able retrieve matching issue")
+        .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues);
     assertThat(jiraDb.findIssuesOrderedById(25, 5))
-        .as("should be able retrieve matching issue")
+        .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues.subList(25, 30));
     assertThat(jiraDb.findIssuesOrderedById(101, 5))
-        .as("no jira issue should be returned when no issue matches the start id")
+        .as("No Jira issue should be returned when no issue matches the start ID")
         .isEmpty();
   }
 
@@ -169,36 +169,36 @@ class JiraDbTest {
         .run();
 
     assertThat(jiraDb.findUsername("foobar@baz.com").get())
-        .as("username should be returned if it exists in DB.")
+        .as("Username should be returned if it exists in DB.")
         .isEqualTo("foobar");
     assertThat(jiraDb.findUsername("Foobar@baz.com").get())
-        .as("email should not be case sensitive")
+        .as("Email should not be case sensitive")
         .isEqualTo("foobar");
     assertThat(jiraDb.findUsername("foo.bar@baz.com"))
-        .as("should return empty if email is not found in DB")
+        .as("Should return empty if email is not found in DB")
         .isEmpty();
   }
 
   @Test
   void updateIssueTimeSpent() {
-    Long projectId = 1L;
-    Issue issue = ImmutableIssue.builder().from(FAKE_ENTITIES.randomIssue()).timeSpent(200).build();
+    final Long projectId = 1L;
+    final Issue issue = ImmutableIssue.builder().from(FAKE_ENTITIES.randomIssue()).timeSpent(200).build();
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
 
     jiraDb.updateIssueTimeSpent(issue.getId(), 700);
 
     assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()).get().getTimeSpent())
-        .as("should be able to update total time spent")
+        .as("Should be able to update total time spent")
         .isEqualTo(700);
   }
 
   @Test
   void createWorklog_newRecord() {
-    ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
-    ZoneId perthTz = ZoneId.of("Australia/Perth");
+    final ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
+    final ZoneId perthTz = ZoneId.of("Australia/Perth");
 
-    // specify timezone to use
+    // Specify timezone to use
     saveDefaultTimeZone(1, perthTz.getId());
 
     Worklog workLogWithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
@@ -206,41 +206,41 @@ class JiraDbTest {
         .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
 
-    Optional<Long> startingWorklogId = jiraDb.getWorklogSeqId();
+    final Optional<Long> startingWorklogId = jiraDb.getWorklogSeqId();
     assertThat(startingWorklogId).isEmpty();
 
     jiraDb.createWorklog(workLogWithSydneyTz);
 
-    assertThat(getWorklog(10299).get()) // 10299 is the starting work log seq id we set if table is empty
-        .as("work log should be saved with created time set the zone specified")
+    assertThat(getWorklog(10299).get()) // 10299 is the starting worklog seq id we set if table is empty
+        .as("Worklog should be saved with created time set the zone specified")
         .isEqualTo(workLogWithPerthTz);
   }
 
   @Test
   void createWorklog_withExistingWorklog() {
-    ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
-    ZoneId perthTz = ZoneId.of("Australia/Perth");
+    final ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
+    final ZoneId perthTz = ZoneId.of("Australia/Perth");
 
-    // specify timezone to use
+    // Specify timezone to use
     saveDefaultTimeZone(1, perthTz.getId());
 
-    // create work log
-    Worklog workLog1WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
+    // Create worklog
+    final Worklog workLog1WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
     jiraDb.createWorklog(workLog1WithSydneyTz);
 
     Worklog workLog2WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
     Worklog workLog2WithPerthTz = ImmutableWorklog.builder().from(workLog2WithSydneyTz)
         .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), perthTz).toLocalDateTime().withNano(0))
         .build();
-    Optional<Long> currentWorkLogId = jiraDb.getWorklogSeqId();
+    final Optional<Long> currentWorkLogId = jiraDb.getWorklogSeqId();
     assertThat(currentWorkLogId)
-        .as("should contain the work log id of the previously created work log")
+        .as("Should contain the worklog ID of the previously created worklog")
         .isPresent();
 
     jiraDb.createWorklog(workLog2WithSydneyTz);
 
-    assertThat(getWorklog(currentWorkLogId.get() + 199).get()) // we increment 199 to generate new work log seq id
-        .as("work log should be saved with created time set the zone specified")
+    assertThat(getWorklog(currentWorkLogId.get() + 199).get()) // we increment 199 to generate new worklog seq ID
+        .as("Worklog should be saved with created time set in the timezone specified")
         .isEqualTo(workLog2WithPerthTz);
   }
 
@@ -263,15 +263,15 @@ class JiraDbTest {
   }
 
   private Issue insertRandomIssueToDb() {
-    Long projectId = FAKER.number().randomNumber();
-    Issue issue = FAKE_ENTITIES.randomIssue();
+    final Long projectId = FAKER.number().randomNumber();
+    final Issue issue = FAKE_ENTITIES.randomIssue();
 
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
     return issue;
   }
 
-  private Optional<Worklog> getWorklog(long worklogId) {
+  private Optional<Worklog> getWorklog(final long worklogId) {
     return query.select("SELECT issueid, author, timeworked, created, worklogbody FROM worklog WHERE id = ?")
         .params(worklogId)
         .firstResult(resultSet -> ImmutableWorklog.builder()
@@ -284,7 +284,7 @@ class JiraDbTest {
         );
   }
 
-  private void saveDefaultTimeZone(int id, String timezone) {
+  private void saveDefaultTimeZone(final int id, final String timezone) {
     query.update("INSERT INTO propertyentry (id, property_key) VALUES (?, 'jira.default.timezone')")
         .params(id)
         .run();
@@ -295,7 +295,7 @@ class JiraDbTest {
         .run();
   }
 
-  private void removedDefaultTimeZone(int id) {
+  private void removedDefaultTimeZone(final int id) {
     query.update("DELETE FROM propertyentry WHERE property_key = 'jira.default.timezone'").run();
     query.update("DELETE FROM propertystring WHERE id = ?").params(id).run();
   }
