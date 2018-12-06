@@ -77,6 +77,16 @@ public class JiraDb {
         "sequence_value_item",
         ImmutableSet.of("seq_id", "seq_name")
     );
+    requiredTablesAndColumnsMap.put(
+        "propertyentry",
+        ImmutableSet.of("id", "property_key")
+    );
+
+    requiredTablesAndColumnsMap.put(
+        "propertystring",
+        ImmutableSet.of("id", "propertyvalue")
+    );
+
 
     Map<String, List<String>> actualTablesAndColumnsMap = query.databaseInspection()
         .selectFromMetaData(meta -> meta.getColumns(null, null, null, null))
