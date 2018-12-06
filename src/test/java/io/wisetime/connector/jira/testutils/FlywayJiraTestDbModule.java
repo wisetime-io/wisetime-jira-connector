@@ -18,16 +18,16 @@ import javax.sql.DataSource;
 /**
  * @author alvin.llobrera@practiceinsight.io
  */
-public class FlyAwayJiraTestDbModule extends AbstractModule {
+public class FlywayJiraTestDbModule extends AbstractModule {
 
   @Override
   protected void configure() {
     bind(Flyway.class)
-        .toProvider(FlyAwayJiraProvider.class);
+        .toProvider(FlywayJiraProvider.class);
   }
 
-  private static class FlyAwayJiraProvider implements Provider<Flyway> {
-    private static final Logger log = LoggerFactory.getLogger(FlyAwayJiraProvider.class);
+  private static class FlywayJiraProvider implements Provider<Flyway> {
+    private static final Logger log = LoggerFactory.getLogger(FlywayJiraProvider.class);
 
     @Inject
     private Provider<DataSource> dataSourceProvider;
@@ -43,10 +43,10 @@ public class FlyAwayJiraTestDbModule extends AbstractModule {
       // jira db schema scripts location
       flyway.setLocations("jira_db_schema/");
 
-      log.info("Flyway team migration...");
+      log.info("Starting Flyway migration...");
       flyway.migrate();
       flyway.validate();
-      log.info("Flyway team migration done.");
+      log.info("Flyway migration done.");
 
       return flyway;
     }

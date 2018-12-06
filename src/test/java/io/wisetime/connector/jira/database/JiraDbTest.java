@@ -34,7 +34,7 @@ import io.wisetime.connector.jira.models.ImmutableWorklog;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.models.Worklog;
 import io.wisetime.connector.jira.testutils.FakeEntities;
-import io.wisetime.connector.jira.testutils.FlyAwayJiraTestDbModule;
+import io.wisetime.connector.jira.testutils.FlywayJiraTestDbModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,7 +56,7 @@ class JiraDbTest {
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey(), "test");
 
     final Injector injector = Guice.createInjector(
-        new JiraConnectorModule(), new FlyAwayJiraTestDbModule()
+        new JiraConnectorModule(), new FlywayJiraTestDbModule()
     );
 
     jiraDb = injector.getInstance(JiraDb.class);
@@ -164,14 +164,8 @@ class JiraDbTest {
 
   @Test
   void findUsername() {
-    query
-        .update(
-            String.format(
-                "INSERT INTO cwd_user (id, user_name, lower_email_address) VALUES (1, '%s', '%s')",
-                "foobar",
-                "foobar@baz.com"
-            )
-        )
+    query.update("INSERT INTO cwd_user (id, user_name, lower_email_address) VALUES (1, ?, ?)")
+        .params("foobar", "foobar@baz.com")
         .run();
 
     assertThat(jiraDb.findUsername("foobar@baz.com").get())
@@ -251,24 +245,19 @@ class JiraDbTest {
   }
 
   private void saveProject(Long projecId, String projectKey) {
-    query
-        .update(
-            String.format("INSERT INTO project (id, pkey) VALUES (%d, '%s')", projecId, projectKey)
-        )
+    query.update("INSERT INTO project (id, pkey) VALUES (?, ?)")
+        .params(projecId, projectKey)
         .run();
   }
 
   private void saveJiraIssue(Long projectId, Issue issue) {
-    query
-        .update(
-            String.format(
-                "INSERT INTO jiraissue (id, project, issuenum, summary, timespent) VALUES (%d, %d, '%s', '%s', %d)",
-                issue.getId(),
-                projectId,
-                issue.getIssueNumber(),
-                issue.getSummary(),
-                issue.getTimeSpent()
-            )
+    query.update("INSERT INTO jiraissue (id, project, issuenum, summary, timespent) VALUES (?, ?, ?, ?, ?)")
+        .params(
+            issue.getId(),
+            projectId,
+            issue.getIssueNumber(),
+            issue.getSummary(),
+            issue.getTimeSpent()
         )
         .run();
   }
@@ -308,6 +297,6 @@ class JiraDbTest {
 
   private void removedDefaultTimeZone(int id) {
     query.update("DELETE FROM propertyentry WHERE property_key = 'jira.default.timezone'").run();
-    query.update("DELETE FROM propertystring  WHERE id = ?").params(id).run();
+    query.update("DELETE FROM propertystring WHERE id = ?").params(id).run();
   }
 }
