@@ -6,8 +6,8 @@ package io.wisetime.connector.jira;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
-import com.google.inject.TypeLiteral;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,15 +19,13 @@ import java.util.Optional;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
-import io.wisetime.connector.jira.config.CallerKey;
-import io.wisetime.connector.jira.config.TagUpsertBatchSize;
-import io.wisetime.connector.jira.config.TagUpsertPath;
+import io.wisetime.connector.jira.database.Issue;
 import io.wisetime.connector.jira.database.JiraDb;
-import io.wisetime.connector.jira.models.Issue;
-import io.wisetime.connector.jira.models.Worklog;
-import io.wisetime.connector.jira.testutils.FakeEntities;
+import io.wisetime.connector.jira.database.Worklog;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
@@ -62,17 +60,40 @@ class JiraConnectorPostTimeTest {
 
   @BeforeAll
   static void setUp() {
+    System.clearProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey());
+    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey(), Integer.valueOf(100).toString());
+    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey(), "/test/path/");
+    RuntimeConfig.rebuild();
+
+    assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
+        .as("CALLER_KEY empty value expected")
+        .isNotPresent();
+
+    assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
+        .as("TAG_UPSERT_BATCH_SIZE should be set to 100")
+        .contains(100);
+
+
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
-      binder.bind(new TypeLiteral<Optional<String>>() {}).annotatedWith(CallerKey.class).toProvider(() -> Optional.empty());
-      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path/");
-      binder.bind(Integer.class).annotatedWith(TagUpsertBatchSize.class).toProvider(() -> 100);
     }).getInstance(JiraConnector.class);
 
     // Ensure JiraConnector#init will not fail
     doReturn(true).when(jiraDb).hasExpectedSchema();
 
     connector.init(new ConnectorModule(apiClient, templateFormatter, mock(ConnectorStore.class)));
+  }
+
+  @AfterAll
+  static void tearDown() {
+    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey());
+    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey());
+    RuntimeConfig.rebuild();
+    assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
+        .as("TAG_UPSERT_BATCH_SIZE empty result expected")
+        .isNotPresent();
+    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.TAG_UPSERT_PATH))
+        .isNotPresent();
   }
 
   @BeforeEach
@@ -100,7 +121,8 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_invalid_caller_key_should_fail() {
-    connector.setCallerKey("caller-key");
+    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
+    RuntimeConfig.rebuild();
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
@@ -116,7 +138,8 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_valid_caller_key_should_succeed() {
-    connector.setCallerKey("caller-key");
+    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
+    RuntimeConfig.rebuild();
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()

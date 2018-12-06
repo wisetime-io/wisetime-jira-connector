@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
-package io.wisetime.connector.jira.testutils;
+package io.wisetime.connector.jira;
 
 import com.google.common.base.Preconditions;
 
@@ -16,10 +16,10 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import io.wisetime.connector.jira.models.ImmutableIssue;
-import io.wisetime.connector.jira.models.ImmutableWorklog;
-import io.wisetime.connector.jira.models.Issue;
-import io.wisetime.connector.jira.models.Worklog;
+import io.wisetime.connector.jira.database.ImmutableIssue;
+import io.wisetime.connector.jira.database.ImmutableWorklog;
+import io.wisetime.connector.jira.database.Issue;
+import io.wisetime.connector.jira.database.Worklog;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;

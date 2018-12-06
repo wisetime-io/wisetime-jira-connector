@@ -8,7 +8,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import io.wisetime.connector.ServerRunner;
-import io.wisetime.connector.jira.config.JiraConnectorModule;
+import io.wisetime.connector.jira.database.JiraDbModule;
 
 /**
  * Connector application entry point.
@@ -18,7 +18,7 @@ import io.wisetime.connector.jira.config.JiraConnectorModule;
 public class ConnectorLauncher {
 
   public static void main(final String... args) throws Exception {
-    final Injector injector = Guice.createInjector(new JiraConnectorModule());
+    final Injector injector = Guice.createInjector(new JiraDbModule());
 
     ServerRunner.createServerBuilder()
         .withWiseTimeConnector(injector.getInstance(JiraConnector.class))

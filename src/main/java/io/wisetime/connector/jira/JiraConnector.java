@@ -4,7 +4,6 @@
 
 package io.wisetime.connector.jira;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -21,16 +20,15 @@ import javax.inject.Inject;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
-import io.wisetime.connector.jira.config.CallerKey;
-import io.wisetime.connector.jira.config.TagUpsertBatchSize;
-import io.wisetime.connector.jira.config.TagUpsertPath;
+import io.wisetime.connector.jira.database.ImmutableWorklog;
+import io.wisetime.connector.jira.database.Issue;
 import io.wisetime.connector.jira.database.JiraDb;
-import io.wisetime.connector.jira.models.ImmutableWorklog;
-import io.wisetime.connector.jira.models.Issue;
-import io.wisetime.connector.jira.models.Worklog;
+import io.wisetime.connector.jira.database.Worklog;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
@@ -45,6 +43,7 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
  *
  * @author shane.xie@practiceinsight.io
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
@@ -55,18 +54,6 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Inject
   private JiraDb jiraDb;
-
-  @Inject
-  @TagUpsertPath
-  private String tagUpsertPath;
-
-  @Inject
-  @TagUpsertBatchSize
-  private int tagUpsertBatchSize;
-
-  @Inject
-  @CallerKey
-  private Optional<String> callerKey;
 
   @Override
   public void init(final ConnectorModule connectorModule) {
@@ -79,8 +66,8 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called by the WiseTime Connector library on a regular schedule.
-   * Finds Jira issues that haven't been synced and creates matching tags for them in WiseTime.
+   * Called by the WiseTime Connector library on a regular schedule. Finds Jira issues that haven't been synced and creates
+   * matching tags for them in WiseTime.
    */
   @Override
   public void performTagUpdate() {
@@ -89,7 +76,7 @@ public class JiraConnector implements WiseTimeConnector {
 
       final List<Issue> issues = jiraDb.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
-          tagUpsertBatchSize
+          tagUpsertBatchSize()
       );
 
       if (issues.isEmpty()) {
@@ -98,7 +85,7 @@ public class JiraConnector implements WiseTimeConnector {
         try {
           final List<UpsertTagRequest> upsertRequests = issues
               .stream()
-              .map(i -> i.toUpsertTagRequest(tagUpsertPath))
+              .map(i -> i.toUpsertTagRequest(tagUpsertPath()))
               .collect(Collectors.toList());
 
           apiClient.tagUpsertBatch(upsertRequests);
@@ -116,13 +103,13 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called by the WiseTime Connector library whenever a user posts time to our team.
-   * Creates a Jira Worklog entry for the relevant issue.
+   * Called by the WiseTime Connector library whenever a user posts time to our team. Creates a Jira Worklog entry for the
+   * relevant issue.
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
-
-    if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {
+    Optional<String> callerKeyOpt = callerKey();
+    if (callerKeyOpt.isPresent() && !callerKeyOpt.get().equals(userPostedTime.getCallerKey())) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Invalid caller key in post time webhook call");
     }
@@ -198,8 +185,21 @@ public class JiraConnector implements WiseTimeConnector {
     return jiraDb.hasConfiguredTimeZone();
   }
 
-  @VisibleForTesting
-  public void setCallerKey(final String callerKey) {
-    this.callerKey = Optional.of(callerKey);
+  private int tagUpsertBatchSize() {
+    return RuntimeConfig
+        .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
+        // A large batch mitigates query round trip latency
+        .orElse(500);
   }
+
+  private String tagUpsertPath() {
+    return RuntimeConfig
+        .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH)
+        .orElse("/Jira/");
+  }
+
+  private Optional<String> callerKey() {
+    return RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
+  }
+
 }

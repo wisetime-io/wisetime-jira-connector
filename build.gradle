@@ -57,12 +57,11 @@ ext.jacocoLimits = [
         'instruction': 85,
         'line'       : 85,
         'method'     : 80,
-        'class'      : 80
+        'class'      : 85
 ]
 
 dependencies {
     compile 'org.apache.commons:commons-configuration2:2.4'
-
 
     compile ('io.wisetime:wise-log-aws:3.1.0') {
         exclude group: 'com.google.guava', module: 'guava'

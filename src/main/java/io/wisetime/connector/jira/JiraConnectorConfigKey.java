@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
-package io.wisetime.connector.jira.config;
+package io.wisetime.connector.jira;
 
 import io.wisetime.connector.config.RuntimeConfigKey;
 

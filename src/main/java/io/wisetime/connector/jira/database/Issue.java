@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All Rights Reserved.
  */
 
-package io.wisetime.connector.jira.models;
+package io.wisetime.connector.jira.database;
 
 import com.google.common.collect.ImmutableList;
 

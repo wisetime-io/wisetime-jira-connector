@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Practice Insight Pty Ltd. All rights reserved.
  */
 
-package io.wisetime.connector.jira.testutils;
+package io.wisetime.connector.jira;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
