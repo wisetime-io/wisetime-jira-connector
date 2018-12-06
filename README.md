@@ -19,12 +19,12 @@ Configuration is done through environment variables. The following configuration
 | JIRA_DB_USER          | Username to use to connect to the Jira database |
 | JIRA_DB_PASSWORD      | Password to use to connect to the Jira database |
 
-The followig configuration options are optional.
+The following configuration options are optional.
 
 | Environment Variable  | Description                                                                                                                             |
 | --------------------  | --------------------------------------------------------------------------------------------------------------------------------------- |
 | CALLER_KEY            | The caller key that WiseTime should provide with post time webhook calls. The connector does not authenticate Webhook calls if not set. |
-| TAG_UPSERT_PATH       | The tag folder path to use for Jira tags. Defaults to `/Jira`.                                                                          |
+| TAG_UPSERT_PATH       | The WiseTime tag folder path to use for Jira tags. Defaults to `/Jira/` (trailing slash is required). Use `/` for root folder.          |
 | TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                     |
 | TIMEZONE              | The timezone to use when posting time to Jira, e.g. `Australia/Perth`. Defaults to `UTC`.                                               |
 

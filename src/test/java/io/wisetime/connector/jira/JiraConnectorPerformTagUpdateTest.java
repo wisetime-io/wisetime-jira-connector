@@ -59,7 +59,7 @@ class JiraConnectorPerformTagUpdateTest {
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
       binder.bind(new TypeLiteral<Optional<String>>() {}).annotatedWith(CallerKey.class).toProvider(() -> Optional.empty());
-      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path");
+      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path/");
       binder.bind(Integer.class).annotatedWith(TagUpsertBatchSize.class).toProvider(() -> 100);
     }).getInstance(JiraConnector.class);
 
@@ -110,7 +110,7 @@ class JiraConnectorPerformTagUpdateTest {
 
     connector.performTagUpdate();
 
-    ArgumentCaptor<List> upsertRequests = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<UpsertTagRequest>> upsertRequests = ArgumentCaptor.forClass(List.class);
     verify(apiClient, times(1)).tagUpsertBatch(upsertRequests.capture());
 
     assertThat(upsertRequests.getValue())
@@ -119,12 +119,12 @@ class JiraConnectorPerformTagUpdateTest {
                 .name(issue1.getProjectKey() + "-" + issue1.getIssueNumber())
                 .description(issue1.getSummary())
                 .additionalKeywords(ImmutableList.of(issue1.getProjectKey() + "-" + issue1.getIssueNumber()))
-                .path("/test/path"),
+                .path("/test/path/"),
             new UpsertTagRequest()
                 .name(issue2.getProjectKey() + "-" + issue2.getIssueNumber())
                 .description(issue2.getSummary())
                 .additionalKeywords(ImmutableList.of(issue2.getProjectKey() + "-" + issue2.getIssueNumber()))
-                .path("/test/path")
+                .path("/test/path/")
         )
         .as("We should create tags for both new issues found, with the configured tag upsert path");
 

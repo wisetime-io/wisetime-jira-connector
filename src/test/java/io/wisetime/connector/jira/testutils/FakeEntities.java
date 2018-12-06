@@ -26,18 +26,18 @@ import io.wisetime.generated.connect.User;
  */
 public class FakeEntities {
 
-  private static final Faker faker = new Faker();
-  private static final String TAG_PATH = "/Jira";
+  private static final Faker FAKER = new Faker();
+  private static final String TAG_PATH = "/Jira/";
 
   public TimeGroup randomTimeGroup() {
     final List<TimeRow> timeRows = randomEntities(() -> randomTimeRow(), 1, 10);
 
     return new TimeGroup()
-        .callerKey(faker.bothify("#?#?#?#?#?"))
+        .callerKey(FAKER.bothify("#?#?#?#?#?"))
         .groupId(UUID.randomUUID().toString())
-        .description(faker.gameOfThrones().quote())
+        .description(FAKER.gameOfThrones().quote())
         .totalDurationSecs(timeRows.stream().mapToInt(TimeRow::getDurationSecs).sum())
-        .groupName(faker.gameOfThrones().city())
+        .groupName(FAKER.gameOfThrones().city())
         .tags(randomEntities(() -> randomTag(TAG_PATH), 1, 3))
         .user(randomUser())
         .timeRows(timeRows)
@@ -47,33 +47,34 @@ public class FakeEntities {
 
   public Tag randomTag(final String path) {
     return new Tag()
-        .name(faker.bothify("??-####", true))
-        .description(faker.gameOfThrones().character());
+        .name(FAKER.bothify("??-####", true))
+        .path(path)
+        .description(FAKER.gameOfThrones().character());
   }
 
   public User randomUser() {
-    final String firstName = faker.name().firstName();
-    final String lastName = faker.name().lastName();
+    final String firstName = FAKER.name().firstName();
+    final String lastName = FAKER.name().lastName();
     return new User()
         .name(firstName + " " + lastName)
-        .email(faker.internet().emailAddress(firstName))
-        .externalId(faker.internet().emailAddress(firstName + "." + lastName))
-        .businessRole(faker.company().profession())
-        .experienceWeightingPercent(faker.random().nextInt(0, 100));
+        .email(FAKER.internet().emailAddress(firstName))
+        .externalId(FAKER.internet().emailAddress(firstName + "." + lastName))
+        .businessRole(FAKER.company().profession())
+        .experienceWeightingPercent(FAKER.random().nextInt(0, 100));
   }
 
   public TimeRow randomTimeRow() {
     return new TimeRow()
-        .activity(faker.company().catchPhrase())
-        .activityHour(2018110100 + faker.random().nextInt(1, 23))
-        .durationSecs(faker.random().nextInt(120, 600))
-        .submittedDate(Long.valueOf(faker.numerify("20180#1#1#5#2####")))
-        .modifier(faker.gameOfThrones().dragon())
+        .activity(FAKER.company().catchPhrase())
+        .activityHour(2018110100 + FAKER.random().nextInt(1, 23))
+        .durationSecs(FAKER.random().nextInt(120, 600))
+        .submittedDate(Long.valueOf(FAKER.numerify("20180#1#1#5#2####")))
+        .modifier(FAKER.gameOfThrones().dragon())
         .source(randomEnum(TimeRow.SourceEnum.class));
   }
 
   public Issue randomIssue() {
-    final Tag tag = randomTag("/Jira");
+    final Tag tag = randomTag(TAG_PATH);
     return randomIssue(tag.getName());
   }
 
@@ -82,23 +83,23 @@ public class FakeEntities {
     Preconditions.checkArgument(tagParts.length == 2);
     return ImmutableIssue
         .builder()
-        .id(faker.random().nextInt(1, 999999))
+        .id(FAKER.random().nextInt(1, 999999))
         .projectKey(tagParts[0])
         .issueNumber(tagParts[1])
-        .summary(faker.hitchhikersGuideToTheGalaxy().quote())
+        .summary(FAKER.hitchhikersGuideToTheGalaxy().quote())
         .timeSpent(0L)
         .build();
   }
 
   private <T> List<T> randomEntities(final Supplier<T> supplier, final int min, final int max) {
     return IntStream
-        .range(0, faker.random().nextInt(min, max))
+        .range(0, FAKER.random().nextInt(min, max))
         .mapToObj(i -> supplier.get())
         .collect(Collectors.toList());
   }
 
-  private static <T extends Enum<?>> T randomEnum(Class<T> clazz){
-    final int index = faker.random().nextInt(clazz.getEnumConstants().length);
+  private static <T extends Enum<?>> T randomEnum(final Class<T> clazz) {
+    final int index = FAKER.random().nextInt(clazz.getEnumConstants().length);
     return clazz.getEnumConstants()[index];
   }
 }
