@@ -188,7 +188,6 @@
         <module name="ParameterNumber">
             <property name="max" value="5"/>
         </module>
-        <module name="FinalParameters"/>
 
         <module name="OuterTypeNumber"/>
         <module name="MethodCount"/>

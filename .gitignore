@@ -4,7 +4,6 @@ dataSources
 build/
 src/gen/
 .gradle/
-gradle.properties
 **/.classpath
 **/.project
 **/.settings
