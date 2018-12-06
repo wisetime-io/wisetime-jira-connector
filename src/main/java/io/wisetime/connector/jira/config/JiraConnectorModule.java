@@ -11,7 +11,6 @@ import com.google.inject.TypeLiteral;
 import org.codejargon.fluentjdbc.api.FluentJdbc;
 import org.codejargon.fluentjdbc.api.query.Query;
 
-import java.time.ZoneId;
 import java.util.Optional;
 
 import javax.sql.DataSource;
@@ -43,16 +42,14 @@ public class JiraConnectorModule extends AbstractModule {
     bind(new TypeLiteral<Optional<String>>() {})
         .annotatedWith(CallerKey.class)
         .toProvider(() ->
-            RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY)
-        );
+            RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY));
 
     bind(String.class)
         .annotatedWith(TagUpsertPath.class)
         .toProvider(() ->
             RuntimeConfig
                 .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH)
-                .orElse("/Jira")
-        );
+                .orElse("/Jira"));
 
     bind(Integer.class)
         .annotatedWith(TagUpsertBatchSize.class)
@@ -60,15 +57,6 @@ public class JiraConnectorModule extends AbstractModule {
             RuntimeConfig
                 .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
                 // A large batch mitigates query round trip latency
-                .orElse(500)
-        );
-
-    bind(ZoneId.class)
-        .toProvider(() -> ZoneId.of(
-              RuntimeConfig
-                  .getString(JiraConnectorConfigKey.TIMEZONE)
-                  .orElse("UTC")
-            )
-        );
+                .orElse(500));
   }
 }

@@ -31,7 +31,6 @@ class IssueTest {
             .name(tagName)
             .description(issue.getSummary())
             .additionalKeywords(ImmutableList.of(tagName))
-            .path("/Jira")
-        );
+            .path("/Jira"));
   }
 }

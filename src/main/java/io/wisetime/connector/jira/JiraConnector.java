@@ -5,6 +5,7 @@
 package io.wisetime.connector.jira;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +70,8 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public void init(ConnectorModule connectorModule) {
+    Preconditions.checkArgument(jiraDb.hasExpectedSchema(), "DB Schema of connected Jira is not yet supported.");
+
     this.apiClient = connectorModule.getApiClient();
     this.connectorStore = connectorModule.getConnectorStore();
     this.templateFormatter = connectorModule.getTemplateFormatter();
@@ -191,7 +194,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDb.canUseDatabase();
+    return jiraDb.hasConfiguredTimeZone();
   }
 
   @VisibleForTesting
