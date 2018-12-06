@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -62,6 +63,9 @@ class JiraConnectorPerformTagUpdateTest {
       binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path/");
       binder.bind(Integer.class).annotatedWith(TagUpsertBatchSize.class).toProvider(() -> 100);
     }).getInstance(JiraConnector.class);
+
+    // Ensure JiraConnector#init will not fail
+    doReturn(true).when(jiraDb).hasExpectedSchema();
 
     connector.init(new ConnectorModule(apiClient, mock(TemplateFormatter.class), connectorStore));
   }

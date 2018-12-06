@@ -8,6 +8,8 @@ import com.google.common.base.Preconditions;
 
 import com.github.javafaker.Faker;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -15,7 +17,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import io.wisetime.connector.jira.models.ImmutableIssue;
+import io.wisetime.connector.jira.models.ImmutableWorklog;
 import io.wisetime.connector.jira.models.Issue;
+import io.wisetime.connector.jira.models.Worklog;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
@@ -47,8 +51,8 @@ public class FakeEntities {
 
   public Tag randomTag(final String path) {
     return new Tag()
-        .name(FAKER.bothify("??-####", true))
         .path(path)
+        .name(FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999))
         .description(FAKER.gameOfThrones().character());
   }
 
@@ -86,8 +90,22 @@ public class FakeEntities {
         .id(FAKER.random().nextInt(1, 999999))
         .projectKey(tagParts[0])
         .issueNumber(tagParts[1])
-        .summary(FAKER.hitchhikersGuideToTheGalaxy().quote())
+        .summary(FAKER.lorem().characters(0, 100))
         .timeSpent(0L)
+        .build();
+  }
+
+  public List<Issue> randomIssues(int count) {
+    return randomEntities(this::randomIssue, count, count);
+  }
+
+  public Worklog randomWorklog(ZoneId zoneId) {
+    return ImmutableWorklog.builder()
+        .author(FAKER.internet().emailAddress())
+        .body(FAKER.book().title())
+        .timeWorked(FAKER.random().nextInt(120, 3600))
+        .created(ZonedDateTime.now(zoneId).toLocalDateTime())
+        .issueId(FAKER.random().nextInt(1, 999999))
         .build();
   }
 
