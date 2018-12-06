@@ -23,7 +23,7 @@ class IssueTest {
   @Test
   void toUpsertTagRequest() {
     final Issue issue = fakeEntities.randomIssue();
-    final UpsertTagRequest request = issue.toUpsertTagRequest("/Jira");
+    final UpsertTagRequest request = issue.toUpsertTagRequest("/Jira/");
     final String tagName = issue.getProjectKey() + "-" + issue.getIssueNumber();
 
     assertThat(request)
@@ -31,6 +31,6 @@ class IssueTest {
             .name(tagName)
             .description(issue.getSummary())
             .additionalKeywords(ImmutableList.of(tagName))
-            .path("/Jira"));
+            .path("/Jira/"));
   }
 }

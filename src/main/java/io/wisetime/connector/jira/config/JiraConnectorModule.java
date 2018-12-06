@@ -49,7 +49,7 @@ public class JiraConnectorModule extends AbstractModule {
         .toProvider(() ->
             RuntimeConfig
                 .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH)
-                .orElse("/Jira"));
+                .orElse("/Jira/"));
 
     bind(Integer.class)
         .annotatedWith(TagUpsertBatchSize.class)

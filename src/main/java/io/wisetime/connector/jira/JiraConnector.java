@@ -48,7 +48,7 @@ import static io.wisetime.connector.jira.utils.TagDurationCalculator.tagDuration
 public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
-  private static String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
+  private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
   private TemplateFormatter templateFormatter;
@@ -69,8 +69,9 @@ public class JiraConnector implements WiseTimeConnector {
   private Optional<String> callerKey;
 
   @Override
-  public void init(ConnectorModule connectorModule) {
-    Preconditions.checkArgument(jiraDb.hasExpectedSchema(), "DB Schema of connected Jira is not yet supported.");
+  public void init(final ConnectorModule connectorModule) {
+    Preconditions.checkArgument(jiraDb.hasExpectedSchema(),
+        "Jira Database schema is unsupported by this connector");
 
     this.apiClient = connectorModule.getApiClient();
     this.connectorStore = connectorModule.getConnectorStore();
@@ -91,7 +92,7 @@ public class JiraConnector implements WiseTimeConnector {
           tagUpsertBatchSize
       );
 
-      if (issues.size() == 0) {
+      if (issues.isEmpty()) {
         return;
       } else {
         try {
@@ -126,7 +127,7 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Invalid caller key in post time webhook call");
     }
 
-    if (userPostedTime.getTags().size() == 0) {
+    if (userPostedTime.getTags().isEmpty()) {
       return PostResult.SUCCESS
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
@@ -167,22 +168,22 @@ public class JiraConnector implements WiseTimeConnector {
 
     try {
       jiraDb.asTransaction(() ->
-        userPostedTime
-            .getTags()
-            .stream()
+          userPostedTime
+              .getTags()
+              .stream()
 
-            .map(Tag::getName)
-            .map(jiraDb::findIssueByTagName)
+              .map(Tag::getName)
+              .map(jiraDb::findIssueByTagName)
 
-            // Fail the transaction if one of the tags doesn't have a matching issue
-            .map(Optional::get)
+              // Fail the transaction if one of the tags doesn't have a matching issue
+              .map(Optional::get)
 
-            .map(updateIssueTimeSpent)
-            .map(createWorklog)
+              .map(updateIssueTimeSpent)
+              .map(createWorklog)
 
-            .forEach(issue ->
-                log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get())
-            )
+              .forEach(issue ->
+                  log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get())
+              )
       );
     } catch (RuntimeException e) {
       return PostResult.TRANSIENT_FAILURE

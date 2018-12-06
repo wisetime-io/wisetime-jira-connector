@@ -6,7 +6,6 @@ package io.wisetime.connector.jira.utils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.Optional;
 
 import io.wisetime.generated.connect.TimeGroup;
@@ -17,15 +16,14 @@ import io.wisetime.generated.connect.TimeRow;
  */
 public class ActivityTimeCalculator {
 
+  private static final DateTimeFormatter ACTIVITY_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHH");
+
   public static Optional<LocalDateTime> timeGroupStartHour(final TimeGroup timeGroup) {
     return timeGroup
         .getTimeRows()
         .stream()
-        .min(Comparator.comparingInt(TimeRow::getActivityHour))
         .map(TimeRow::getActivityHour)
-        .map(hour -> {
-          DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHH");
-          return LocalDateTime.parse(String.valueOf(hour), formatter);
-        });
+        .min(Integer::compareTo)
+        .map(hour -> LocalDateTime.parse(String.valueOf(hour), ACTIVITY_HOUR_FORMATTER));
   }
 }

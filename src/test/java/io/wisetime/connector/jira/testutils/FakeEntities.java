@@ -31,7 +31,7 @@ import io.wisetime.generated.connect.User;
 public class FakeEntities {
 
   private static final Faker FAKER = new Faker();
-  private static final String TAG_PATH = "/Jira";
+  private static final String TAG_PATH = "/Jira/";
 
   public TimeGroup randomTimeGroup() {
     final List<TimeRow> timeRows = randomEntities(() -> randomTimeRow(), 1, 10);
@@ -51,6 +51,7 @@ public class FakeEntities {
 
   public Tag randomTag(final String path) {
     return new Tag()
+        .path(path)
         .name(FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999))
         .description(FAKER.gameOfThrones().character());
   }
@@ -77,7 +78,7 @@ public class FakeEntities {
   }
 
   public Issue randomIssue() {
-    final Tag tag = randomTag("/Jira");
+    final Tag tag = randomTag(TAG_PATH);
     return randomIssue(tag.getName());
   }
 
@@ -115,7 +116,7 @@ public class FakeEntities {
         .collect(Collectors.toList());
   }
 
-  private static <T extends Enum<?>> T randomEnum(Class<T> clazz) {
+  private static <T extends Enum<?>> T randomEnum(final Class<T> clazz) {
     final int index = FAKER.random().nextInt(clazz.getEnumConstants().length);
     return clazz.getEnumConstants()[index];
   }

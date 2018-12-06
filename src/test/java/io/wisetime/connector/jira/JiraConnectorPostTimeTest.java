@@ -65,7 +65,7 @@ class JiraConnectorPostTimeTest {
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDb.class).toProvider(() -> jiraDb);
       binder.bind(new TypeLiteral<Optional<String>>() {}).annotatedWith(CallerKey.class).toProvider(() -> Optional.empty());
-      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path");
+      binder.bind(String.class).annotatedWith(TagUpsertPath.class).toProvider(() -> "/test/path/");
       binder.bind(Integer.class).annotatedWith(TagUpsertBatchSize.class).toProvider(() -> 100);
     }).getInstance(JiraConnector.class);
 
@@ -170,7 +170,7 @@ class JiraConnectorPostTimeTest {
     when(jiraDb.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
-    final Tag tag = fakeEntities.randomTag("/Jira");
+    final Tag tag = fakeEntities.randomTag("/Jira/");
     final Issue issue = fakeEntities.randomIssue(tag.getName());
 
     when(jiraDb.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
@@ -190,8 +190,8 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_valid_group_should_succeed() {
-    final Tag tag1 = fakeEntities.randomTag("/Jira");
-    final Tag tag2 = fakeEntities.randomTag("/Jira");
+    final Tag tag1 = fakeEntities.randomTag("/Jira/");
+    final Tag tag2 = fakeEntities.randomTag("/Jira/");
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);

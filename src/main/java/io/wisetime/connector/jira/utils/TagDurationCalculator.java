@@ -12,11 +12,11 @@ import io.wisetime.generated.connect.TimeGroup;
 public class TagDurationCalculator {
 
   public static double tagDurationSecs(final TimeGroup timeGroup) {
-    if (timeGroup.getTags().size() == 0) {
+    if (timeGroup.getTags().isEmpty()) {
       return 0;
     }
     final double durationWithExperienceRating =
-        timeGroup.getTotalDurationSecs() * timeGroup.getUser().getExperienceWeightingPercent() / 100;
+        timeGroup.getTotalDurationSecs() * timeGroup.getUser().getExperienceWeightingPercent() / 100.;
 
     switch (timeGroup.getDurationSplitStrategy()) {
       case WHOLE_DURATION_TO_EACH_TAG:
