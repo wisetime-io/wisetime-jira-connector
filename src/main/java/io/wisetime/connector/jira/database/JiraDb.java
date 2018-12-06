@@ -145,7 +145,7 @@ public class JiraDb {
   public Optional<String> findUsername(final String email) {
     return query.select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
         .namedParam("email", email.toLowerCase())
-        .firstResult(resultSet -> resultSet.getString(1));
+        .firstResult(Mappers.singleString());
   }
 
   public void updateIssueTimeSpent(final long issueId, final long duration) {
@@ -210,11 +210,11 @@ public class JiraDb {
 
   private ZoneId getJiraDefaultTimeZone() {
     Long propertyId = query.select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
-        .singleResult(rs -> rs.getLong(1));
+        .singleResult(Mappers.singleLong());
 
     String timeZone = query.select("SELECT propertyvalue from propertystring WHERE id = ?")
         .params(propertyId)
-        .singleResult(rs -> rs.getString(1));
+        .singleResult(Mappers.singleString());
 
     return ZoneId.of(timeZone);
   }
