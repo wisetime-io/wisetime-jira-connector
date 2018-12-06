@@ -22,11 +22,11 @@ import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
-import io.wisetime.connector.jira.database.JiraDb;
-import io.wisetime.connector.jira.database.Issue;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
+import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
+import static io.wisetime.connector.jira.JiraDbDao.Issue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -47,8 +47,8 @@ import static org.mockito.Mockito.when;
  */
 class JiraConnectorPerformTagUpdateTest {
 
-  private static FakeEntities fakeEntities = new FakeEntities();
-  private static JiraDb jiraDb = mock(JiraDb.class);
+  private static RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
+  private static JiraDbDao jiraDbDao = mock(JiraDbDao.class);
   private static ApiClient apiClient = mock(ApiClient.class);
   private static ConnectorStore connectorStore = mock(ConnectorStore.class);
   private static JiraConnector connector;
@@ -70,11 +70,11 @@ class JiraConnectorPerformTagUpdateTest {
         .contains(100);
 
     connector = Guice.createInjector(binder -> {
-      binder.bind(JiraDb.class).toProvider(() -> jiraDb);
+      binder.bind(JiraDbDao.class).toProvider(() -> jiraDbDao);
     }).getInstance(JiraConnector.class);
 
     // Ensure JiraConnector#init will not fail
-    doReturn(true).when(jiraDb).hasExpectedSchema();
+    doReturn(true).when(jiraDbDao).hasExpectedSchema();
 
     connector.init(new ConnectorModule(apiClient, mock(TemplateFormatter.class), connectorStore));
   }
@@ -96,14 +96,14 @@ class JiraConnectorPerformTagUpdateTest {
 
   @BeforeEach
   void setUpTest() {
-    reset(jiraDb);
+    reset(jiraDbDao);
     reset(apiClient);
     reset(connectorStore);
   }
 
   @Test
   void performTagUpdate_no_jira_issues_found() throws IOException {
-    when(jiraDb.findIssuesOrderedById(anyLong(), anyInt())).thenReturn(ImmutableList.of());
+    when(jiraDbDao.findIssuesOrderedById(anyLong(), anyInt())).thenReturn(ImmutableList.of());
 
     connector.performTagUpdate();
 
@@ -113,8 +113,8 @@ class JiraConnectorPerformTagUpdateTest {
 
   @Test
   void performTagUpdate_upsert_error() throws IOException {
-    when(jiraDb.findIssuesOrderedById(anyLong(), anyInt()))
-        .thenReturn(ImmutableList.of(fakeEntities.randomIssue(), fakeEntities.randomIssue()));
+    when(jiraDbDao.findIssuesOrderedById(anyLong(), anyInt()))
+        .thenReturn(ImmutableList.of(randomDataGenerator.randomIssue(), randomDataGenerator.randomIssue()));
 
     doThrow(new IOException())
         .when(apiClient).tagUpsertBatch(anyList());
@@ -126,13 +126,13 @@ class JiraConnectorPerformTagUpdateTest {
 
   @Test
   void performTagUpdate_new_issues_found() throws IOException {
-    final Issue issue1 = fakeEntities.randomIssue();
-    final Issue issue2 = fakeEntities.randomIssue();
+    final Issue issue1 = randomDataGenerator.randomIssue();
+    final Issue issue2 = randomDataGenerator.randomIssue();
 
     when(connectorStore.getLong(anyString())).thenReturn(Optional.empty());
 
     ArgumentCaptor<Integer> batchSize = ArgumentCaptor.forClass(Integer.class);
-    when(jiraDb.findIssuesOrderedById(anyLong(), batchSize.capture()))
+    when(jiraDbDao.findIssuesOrderedById(anyLong(), batchSize.capture()))
         .thenReturn(ImmutableList.of(issue1, issue2))
         .thenReturn(ImmutableList.of());
 
