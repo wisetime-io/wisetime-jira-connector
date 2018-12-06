@@ -49,9 +49,6 @@ public class JiraDb {
   private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   @Inject
-  private ZoneId zoneId;
-
-  @Inject
   private Query query;
 
   public void asTransaction(final Runnable runnable) {
@@ -96,10 +93,10 @@ public class JiraDb {
         );
   }
 
-  public boolean canQueryDatabase() {
+  public boolean hasConfiguredTimeZone() {
     try {
-      query.select("SELECT 1 FROM jiraissue").firstResult(ResultSet::getRow);
-      // If above query did not fail, it means we can connect to Jira DB
+      getJiraDefaultTimeZone();
+      // If above query did not fail, it means we can connect to Jira DB and we can insert worklog with correct timezone
       return true;
     } catch (Exception ex) {
       return false;
@@ -159,7 +156,10 @@ public class JiraDb {
         .namedParam("jiraIssueId", worklog.getIssueId())
         .namedParam("jiraUsername", worklog.getAuthor())
         .namedParam("timeSpent", worklog.getTimeWorked())
-        .namedParam("createdDate", ZonedDateTime.of(worklog.getCreated(), zoneId).format(dateTimeFormatter))
+        .namedParam(
+            "createdDate",
+            ZonedDateTime.of(worklog.getCreated(), getJiraDefaultTimeZone()).format(dateTimeFormatter)
+        )
         .namedParam("comment", worklog.getBody())
         .run();
 
@@ -196,6 +196,17 @@ public class JiraDb {
     query.update("UPDATE sequence_value_item SET seq_id=? WHERE seq_name='Worklog'")
         .params(newSeqId)
         .run();
+  }
+
+  private ZoneId getJiraDefaultTimeZone() {
+    Long propertyId = query.select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
+        .singleResult(rs -> rs.getLong(1));
+
+    String timeZone = query.select("SELECT propertyvalue from propertystring WHERE id = ?")
+        .params(propertyId)
+        .singleResult(rs -> rs.getString(1));
+
+    return ZoneId.of(timeZone);
   }
 
   private ImmutableIssue buildIssueFromResultSet(ResultSet resultSet) throws SQLException {

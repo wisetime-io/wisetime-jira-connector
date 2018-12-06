@@ -98,3 +98,23 @@ create table if not exists sequence_value_item
 	SEQ_ID decimal(18) null
 )
 ;
+
+create table if not exists propertyentry
+(
+	ID decimal(18) not null
+		primary key,
+	ENTITY_NAME varchar(255) null,
+	ENTITY_ID decimal(18) null,
+	PROPERTY_KEY varchar(255) null,
+	propertytype decimal(9) null
+)
+;
+
+create table if not exists propertystring
+(
+	ID decimal(18) not null
+		primary key,
+	propertyvalue text null
+)
+;
+

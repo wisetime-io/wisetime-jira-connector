@@ -187,7 +187,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDb.canQueryDatabase();
+    return jiraDb.hasConfiguredTimeZone();
   }
 
   @VisibleForTesting

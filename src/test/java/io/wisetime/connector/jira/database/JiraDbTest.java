@@ -78,6 +78,8 @@ class JiraDbTest {
     query.update("DELETE FROM cwd_user").run();
     query.update("DELETE FROM worklog").run();
     query.update("DELETE FROM sequence_value_item").run();
+    query.update("DELETE FROM propertyentry").run();
+    query.update("DELETE FROM propertystring").run();
   }
 
   @Test
@@ -98,19 +100,21 @@ class JiraDbTest {
   }
 
   @Test
-  void canQueryDatabase() {
-    insertRandomIssueToDb();
+  void hasConfiguredTimeZone() {
+    assertThat(jiraDb.hasConfiguredTimeZone())
+        .as("no time zone is set")
+        .isFalse();
 
-    assertThat(jiraDb.canQueryDatabase()).isTrue();
-  }
-
-  @Test
-  void canQueryDatabase_tableIsEmpty() {
-    query.update("DELETE FROM jiraissue").run();
-
-    assertThat(jiraDb.canQueryDatabase())
-        .as("should return true even jiraissue table is empty")
+    saveDefaultTimeZone(1, "Asia/Manila");
+    assertThat(jiraDb.hasConfiguredTimeZone())
+        .as("time zone is set")
         .isTrue();
+
+    removedDefaultTimeZone(1);
+    saveDefaultTimeZone(1, "Asia/Perth");
+    assertThat(jiraDb.hasConfiguredTimeZone())
+        .as("time zone is unrecognized")
+        .isFalse();
   }
 
   @Test
@@ -197,8 +201,14 @@ class JiraDbTest {
 
   @Test
   void createWorklog_newRecord() {
-    Worklog workLogWithSydneyTz = FAKE_ENTITIES.randomWorklog(ZoneId.of("Australia/Sydney"));
-    Worklog workLogWithUtcTz = ImmutableWorklog.builder().from(workLogWithSydneyTz)
+    ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
+    ZoneId perthTz = ZoneId.of("Australia/Perth");
+
+    // specify timezone to use
+    saveDefaultTimeZone(1, perthTz.getId());
+
+    Worklog workLogWithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
+    Worklog workLogWithPerthTz = ImmutableWorklog.builder().from(workLogWithSydneyTz)
         .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
 
@@ -208,20 +218,25 @@ class JiraDbTest {
     jiraDb.createWorklog(workLogWithSydneyTz);
 
     assertThat(getWorklog(10299).get()) // 10299 is the starting work log seq id we set if table is empty
-        .as("work log should be saved with created time set the zone specified, default is UTC")
-        .isEqualTo(workLogWithUtcTz);
+        .as("work log should be saved with created time set the zone specified")
+        .isEqualTo(workLogWithPerthTz);
   }
 
   @Test
   void createWorklog_withExistingWorklog() {
+    ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
+    ZoneId perthTz = ZoneId.of("Australia/Perth");
+
+    // specify timezone to use
+    saveDefaultTimeZone(1, perthTz.getId());
+
     // create work log
-    Worklog workLog1WithSydneyTz = FAKE_ENTITIES.randomWorklog(ZoneId.of("Australia/Sydney"));
+    Worklog workLog1WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
     jiraDb.createWorklog(workLog1WithSydneyTz);
 
-
-    Worklog workLog2WithSydneyTz = FAKE_ENTITIES.randomWorklog(ZoneId.of("Australia/Sydney"));
-    Worklog workLog2WithUtcTz = ImmutableWorklog.builder().from(workLog2WithSydneyTz)
-        .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
+    Worklog workLog2WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
+    Worklog workLog2WithPerthTz = ImmutableWorklog.builder().from(workLog2WithSydneyTz)
+        .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), perthTz).toLocalDateTime().withNano(0))
         .build();
     Optional<Long> currentWorkLogId = jiraDb.getWorklogSeqId();
     assertThat(currentWorkLogId)
@@ -231,8 +246,8 @@ class JiraDbTest {
     jiraDb.createWorklog(workLog2WithSydneyTz);
 
     assertThat(getWorklog(currentWorkLogId.get() + 199).get()) // we increment 199 to generate new work log seq id
-        .as("work log should be saved with created time set the zone specified, default is UTC")
-        .isEqualTo(workLog2WithUtcTz);
+        .as("work log should be saved with created time set the zone specified")
+        .isEqualTo(workLog2WithPerthTz);
   }
 
   private void saveProject(Long projecId, String projectKey) {
@@ -278,5 +293,21 @@ class JiraDbTest {
             .body(resultSet.getString(5))
             .build()
         );
+  }
+
+  private void saveDefaultTimeZone(int id, String timezone) {
+    query.update("INSERT INTO propertyentry (id, property_key) VALUES (?, 'jira.default.timezone')")
+        .params(id)
+        .run();
+
+    query.update("INSERT INTO propertystring (id, propertyvalue) VALUES (?, ?)")
+        .params(id)
+        .params(timezone)
+        .run();
+  }
+
+  private void removedDefaultTimeZone(int id) {
+    query.update("DELETE FROM propertyentry WHERE property_key = 'jira.default.timezone'").run();
+    query.update("DELETE FROM propertystring  WHERE id = ?").params(id).run();
   }
 }
