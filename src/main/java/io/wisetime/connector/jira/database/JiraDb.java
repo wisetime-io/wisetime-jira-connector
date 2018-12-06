@@ -8,9 +8,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.codejargon.fluentjdbc.api.FluentJdbc;
 import org.codejargon.fluentjdbc.api.FluentJdbcException;
 import org.codejargon.fluentjdbc.api.mapper.Mappers;
 import org.codejargon.fluentjdbc.api.query.Query;
@@ -27,10 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import io.wisetime.connector.jira.models.ImmutableIssue;
-import io.wisetime.connector.jira.models.Issue;
-import io.wisetime.connector.jira.models.Worklog;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -49,13 +47,15 @@ public class JiraDb {
   private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   @Inject
-  private Query query;
+  private Provider<FluentJdbc> jdbcProvider;
 
   public void asTransaction(final Runnable runnable) {
-    query.transaction().inNoResult(runnable);
+    query().transaction().inNoResult(runnable);
   }
 
   public boolean hasExpectedSchema() {
+    final Query query = query();
+
     final Map<String, Set<String>> requiredTablesAndColumnsMap = Maps.newHashMap();
     requiredTablesAndColumnsMap.put(
         "jiraissue",
@@ -96,8 +96,8 @@ public class JiraDb {
     return requiredTablesAndColumnsMap.entrySet().stream()
         // Values from MetaDataResultSet are in uppercase
         .allMatch(entry -> actualTablesAndColumnsMap.containsKey(entry.getKey().toUpperCase()) &&
-                actualTablesAndColumnsMap.get(entry.getKey().toUpperCase()).containsAll(
-                    entry.getValue().stream().map(String::toUpperCase).collect(Collectors.toSet()))
+            actualTablesAndColumnsMap.get(entry.getKey().toUpperCase()).containsAll(
+                entry.getValue().stream().map(String::toUpperCase).collect(Collectors.toSet()))
         );
   }
 
@@ -114,7 +114,7 @@ public class JiraDb {
   public Optional<Issue> findIssueByTagName(final String tagName) {
     return getJiraProjectIssuePair(tagName)
         .flatMap(projectIssuePair ->
-            query.select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
+            query().select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
                 + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
                 + "WHERE project.pkey = ? AND jiraissue.issuenum = ?")
                 .params(
@@ -126,7 +126,7 @@ public class JiraDb {
   }
 
   public List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults) {
-    return query.select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
+    return query().select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
         + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
         + "WHERE jiraissue.id > ? ORDER BY ID ASC LIMIT ?;")
         .params(
@@ -137,13 +137,13 @@ public class JiraDb {
   }
 
   public Optional<String> findUsername(final String email) {
-    return query.select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
+    return query().select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
         .namedParam("email", email.toLowerCase())
         .firstResult(Mappers.singleString());
   }
 
   public void updateIssueTimeSpent(final long issueId, final long duration) {
-    query.update("UPDATE jiraissue SET timespent = :totalTimeSpent WHERE id = :jiraIssueId")
+    query().update("UPDATE jiraissue SET timespent = :totalTimeSpent WHERE id = :jiraIssueId")
         .namedParam("totalTimeSpent", duration)
         .namedParam("jiraIssueId", issueId)
         .run();
@@ -154,7 +154,7 @@ public class JiraDb {
     // to make sure the new seq ID is not used by the connected Jira system
     Long nextSeqId = getWorklogSeqId().orElse(10100L) + 199L;
 
-    query.update("INSERT INTO worklog (id, issueid, author, timeworked, created, worklogbody) "
+    query().update("INSERT INTO worklog (id, issueid, author, timeworked, created, worklogbody) "
         + "VALUES (:sequenceId, :jiraIssueId, :jiraUsername, :timeSpent, :createdDate, :comment);")
         .namedParam("sequenceId", nextSeqId)
         .namedParam("jiraIssueId", worklog.getIssueId())
@@ -182,7 +182,7 @@ public class JiraDb {
   @VisibleForTesting
   Optional<Long> getWorklogSeqId() {
     try {
-      final long seqId = query.select("SELECT seq_id FROM sequence_value_item WHERE seq_name='Worklog'")
+      final long seqId = query().select("SELECT seq_id FROM sequence_value_item WHERE seq_name='Worklog'")
           .singleResult(Mappers.singleLong());
       return Optional.of(seqId);
     } catch (FluentJdbcException e) {
@@ -191,22 +191,22 @@ public class JiraDb {
   }
 
   private void createWorklogSeqId(final long seqId) {
-    query.update("INSERT INTO sequence_value_item (seq_name, seq_id) VALUES ('Worklog', ?)")
+    query().update("INSERT INTO sequence_value_item (seq_name, seq_id) VALUES ('Worklog', ?)")
         .params(seqId)
         .run();
   }
 
   private void updateWorklogSeqId(final long newSeqId) {
-    query.update("UPDATE sequence_value_item SET seq_id=? WHERE seq_name='Worklog'")
+    query().update("UPDATE sequence_value_item SET seq_id=? WHERE seq_name='Worklog'")
         .params(newSeqId)
         .run();
   }
 
   private ZoneId getJiraDefaultTimeZone() {
-    final Long propertyId = query.select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
+    final Long propertyId = query().select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
         .singleResult(Mappers.singleLong());
 
-    String timeZone = query.select("SELECT propertyvalue from propertystring WHERE id = ?")
+    String timeZone = query().select("SELECT propertyvalue from propertystring WHERE id = ?")
         .params(propertyId)
         .singleResult(Mappers.singleString());
 
@@ -235,4 +235,9 @@ public class JiraDb {
       return Optional.empty();
     }
   }
+
+  private Query query() {
+    return jdbcProvider.get().query();
+  }
+
 }

@@ -10,6 +10,7 @@ import com.google.inject.Injector;
 
 import com.github.javafaker.Faker;
 
+import org.codejargon.fluentjdbc.api.FluentJdbc;
 import org.codejargon.fluentjdbc.api.query.Query;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,14 +28,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import io.wisetime.connector.config.RuntimeConfig;
-import io.wisetime.connector.jira.config.JiraConnectorConfigKey;
-import io.wisetime.connector.jira.config.JiraConnectorModule;
-import io.wisetime.connector.jira.models.ImmutableIssue;
-import io.wisetime.connector.jira.models.ImmutableWorklog;
-import io.wisetime.connector.jira.models.Issue;
-import io.wisetime.connector.jira.models.Worklog;
-import io.wisetime.connector.jira.testutils.FakeEntities;
-import io.wisetime.connector.jira.testutils.FlywayJiraTestDbModule;
+import io.wisetime.connector.jira.JiraConnectorConfigKey;
+import io.wisetime.connector.jira.FakeEntities;
+import io.wisetime.connector.jira.FlywayJiraTestDbModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,31 +44,47 @@ class JiraDbTest {
   private static final FakeEntities FAKE_ENTITIES = new FakeEntities();
   private static final Faker FAKER = new Faker();
   private static JiraDb jiraDb;
-  private static Query query;
+  private static FluentJdbc fluentJdbc;
 
   @BeforeAll
   static void setup() {
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey(), TEST_JDBC_URL);
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_USER.getConfigKey(), "test");
     System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey(), "test");
+    RuntimeConfig.rebuild();
 
     final Injector injector = Guice.createInjector(
-        new JiraConnectorModule(), new FlywayJiraTestDbModule()
+        new JiraDbModule(), new FlywayJiraTestDbModule()
     );
 
     jiraDb = injector.getInstance(JiraDb.class);
-    query = injector.getInstance(Query.class);
+    fluentJdbc = injector.getInstance(FluentJdbc.class);
+
 
     // Apply Jira DB schema to test db
     injector.getInstance(Flyway.class).migrate();
   }
 
+
+
+  @BeforeAll
+  static void tearDown() {
+    System.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey());
+    System.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_USER.getConfigKey());
+    System.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey());
+    RuntimeConfig.rebuild();
+
+  }
+
+
   @BeforeEach
   void setupTests() {
+
     Preconditions.checkState(
         // We don't want to accidentally truncate production tables
         RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_JDBC_URL).orElse("").equals(TEST_JDBC_URL)
     );
+    Query query = fluentJdbc.query();
     query.update("DELETE FROM project").run();
     query.update("DELETE FROM jiraissue").run();
     query.update("DELETE FROM cwd_user").run();
@@ -88,6 +100,7 @@ class JiraDbTest {
         .as("Flyway should freshly applied the expected Jira DB schema")
         .isTrue();
 
+    Query query = fluentJdbc.query();
     query.update("ALTER TABLE project DROP pkey").run();
     assertThat(jiraDb.hasExpectedSchema())
         .as("A missing column should be detected")
@@ -164,7 +177,7 @@ class JiraDbTest {
 
   @Test
   void findUsername() {
-    query.update("INSERT INTO cwd_user (id, user_name, lower_email_address) VALUES (1, ?, ?)")
+    fluentJdbc.query().update("INSERT INTO cwd_user (id, user_name, lower_email_address) VALUES (1, ?, ?)")
         .params("foobar", "foobar@baz.com")
         .run();
 
@@ -245,13 +258,13 @@ class JiraDbTest {
   }
 
   private void saveProject(Long projecId, String projectKey) {
-    query.update("INSERT INTO project (id, pkey) VALUES (?, ?)")
+    fluentJdbc.query().update("INSERT INTO project (id, pkey) VALUES (?, ?)")
         .params(projecId, projectKey)
         .run();
   }
 
   private void saveJiraIssue(Long projectId, Issue issue) {
-    query.update("INSERT INTO jiraissue (id, project, issuenum, summary, timespent) VALUES (?, ?, ?, ?, ?)")
+    fluentJdbc.query().update("INSERT INTO jiraissue (id, project, issuenum, summary, timespent) VALUES (?, ?, ?, ?, ?)")
         .params(
             issue.getId(),
             projectId,
@@ -272,7 +285,7 @@ class JiraDbTest {
   }
 
   private Optional<Worklog> getWorklog(final long worklogId) {
-    return query.select("SELECT issueid, author, timeworked, created, worklogbody FROM worklog WHERE id = ?")
+    return fluentJdbc.query().select("SELECT issueid, author, timeworked, created, worklogbody FROM worklog WHERE id = ?")
         .params(worklogId)
         .firstResult(resultSet -> ImmutableWorklog.builder()
             .issueId(resultSet.getLong(1))
@@ -285,18 +298,18 @@ class JiraDbTest {
   }
 
   private void saveDefaultTimeZone(final int id, final String timezone) {
-    query.update("INSERT INTO propertyentry (id, property_key) VALUES (?, 'jira.default.timezone')")
+    fluentJdbc.query().update("INSERT INTO propertyentry (id, property_key) VALUES (?, 'jira.default.timezone')")
         .params(id)
         .run();
 
-    query.update("INSERT INTO propertystring (id, propertyvalue) VALUES (?, ?)")
+    fluentJdbc.query().update("INSERT INTO propertystring (id, propertyvalue) VALUES (?, ?)")
         .params(id)
         .params(timezone)
         .run();
   }
 
   private void removedDefaultTimeZone(final int id) {
-    query.update("DELETE FROM propertyentry WHERE property_key = 'jira.default.timezone'").run();
-    query.update("DELETE FROM propertystring WHERE id = ?").params(id).run();
+    fluentJdbc.query().update("DELETE FROM propertyentry WHERE property_key = 'jira.default.timezone'").run();
+    fluentJdbc.query().update("DELETE FROM propertystring WHERE id = ?").params(id).run();
   }
 }
