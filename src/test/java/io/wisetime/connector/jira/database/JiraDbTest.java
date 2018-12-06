@@ -28,9 +28,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import io.wisetime.connector.config.RuntimeConfig;
-import io.wisetime.connector.jira.JiraConnectorConfigKey;
 import io.wisetime.connector.jira.FakeEntities;
 import io.wisetime.connector.jira.FlywayJiraTestDbModule;
+import io.wisetime.connector.jira.JiraConnectorConfigKey;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,7 +64,6 @@ class JiraDbTest {
     // Apply Jira DB schema to test db
     injector.getInstance(Flyway.class).migrate();
   }
-
 
 
   @BeforeAll
@@ -156,7 +155,7 @@ class JiraDbTest {
 
     saveProject(projectId, projectKey);
     List<Issue> savedIssues = IntStream.range(0, issues.size())
-        .mapToObj(idx -> ImmutableIssue.builder()
+        .mapToObj(idx -> Issue.builder()
             .from(issues.get(idx))
             .id(idx + 1)  // ID should start at 1
             .projectKey(projectKey)
@@ -195,7 +194,7 @@ class JiraDbTest {
   @Test
   void updateIssueTimeSpent() {
     final Long projectId = 1L;
-    final Issue issue = ImmutableIssue.builder().from(FAKE_ENTITIES.randomIssue()).timeSpent(200).build();
+    final Issue issue = Issue.builder().from(FAKE_ENTITIES.randomIssue()).timeSpent(200).build();
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
 
@@ -215,7 +214,7 @@ class JiraDbTest {
     saveDefaultTimeZone(1, perthTz.getId());
 
     Worklog workLogWithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
-    Worklog workLogWithPerthTz = ImmutableWorklog.builder().from(workLogWithSydneyTz)
+    Worklog workLogWithPerthTz = Worklog.builder().from(workLogWithSydneyTz)
         .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
 
@@ -242,7 +241,7 @@ class JiraDbTest {
     jiraDb.createWorklog(workLog1WithSydneyTz);
 
     Worklog workLog2WithSydneyTz = FAKE_ENTITIES.randomWorklog(sydneyTz);
-    Worklog workLog2WithPerthTz = ImmutableWorklog.builder().from(workLog2WithSydneyTz)
+    Worklog workLog2WithPerthTz = Worklog.builder().from(workLog2WithSydneyTz)
         .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), perthTz).toLocalDateTime().withNano(0))
         .build();
     final Optional<Long> currentWorkLogId = jiraDb.getWorklogSeqId();
@@ -287,7 +286,7 @@ class JiraDbTest {
   private Optional<Worklog> getWorklog(final long worklogId) {
     return fluentJdbc.query().select("SELECT issueid, author, timeworked, created, worklogbody FROM worklog WHERE id = ?")
         .params(worklogId)
-        .firstResult(resultSet -> ImmutableWorklog.builder()
+        .firstResult(resultSet -> Worklog.builder()
             .issueId(resultSet.getLong(1))
             .author(resultSet.getString(2))
             .timeWorked(resultSet.getLong(3))

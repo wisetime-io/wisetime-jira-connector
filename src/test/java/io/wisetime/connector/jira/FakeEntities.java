@@ -16,8 +16,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import io.wisetime.connector.jira.database.ImmutableIssue;
-import io.wisetime.connector.jira.database.ImmutableWorklog;
 import io.wisetime.connector.jira.database.Issue;
 import io.wisetime.connector.jira.database.Worklog;
 import io.wisetime.generated.connect.Tag;
@@ -85,7 +83,7 @@ public class FakeEntities {
   public Issue randomIssue(final String key) {
     final String[] tagParts = key.split("-");
     Preconditions.checkArgument(tagParts.length == 2);
-    return ImmutableIssue
+    return Issue
         .builder()
         .id(FAKER.random().nextInt(1, 999999))
         .projectKey(tagParts[0])
@@ -100,7 +98,7 @@ public class FakeEntities {
   }
 
   public Worklog randomWorklog(ZoneId zoneId) {
-    return ImmutableWorklog.builder()
+    return Worklog.builder()
         .author(FAKER.internet().emailAddress())
         .body(FAKER.book().title())
         .timeWorked(FAKER.random().nextInt(120, 3600))

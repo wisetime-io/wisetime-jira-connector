@@ -25,4 +25,9 @@ public interface Worklog {
   LocalDateTime getCreated();
 
   String getBody();
+
+  static ImmutableWorklog.Builder builder() {
+    return ImmutableWorklog.builder();
+  }
+
 }

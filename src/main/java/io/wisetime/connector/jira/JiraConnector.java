@@ -25,7 +25,6 @@ import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
-import io.wisetime.connector.jira.database.ImmutableWorklog;
 import io.wisetime.connector.jira.database.Issue;
 import io.wisetime.connector.jira.database.JiraDb;
 import io.wisetime.connector.jira.database.Worklog;
@@ -140,7 +139,7 @@ public class JiraConnector implements WiseTimeConnector {
     };
 
     final Function<Issue, Issue> createWorklog = forIssue -> {
-      final Worklog worklog = ImmutableWorklog
+      final Worklog worklog = Worklog
           .builder()
           .issueId(forIssue.getId())
           .author(author.get())

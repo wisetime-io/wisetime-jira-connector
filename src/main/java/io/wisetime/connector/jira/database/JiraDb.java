@@ -213,8 +213,8 @@ public class JiraDb {
     return ZoneId.of(timeZone);
   }
 
-  private ImmutableIssue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {
-    return ImmutableIssue.builder()
+  private Issue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {
+    return Issue.builder()
         .id(resultSet.getLong("jiraissue.id"))
         .projectKey(resultSet.getString("project.pkey"))
         .issueNumber(resultSet.getString("jiraissue.issuenum"))

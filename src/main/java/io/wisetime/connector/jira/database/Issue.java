@@ -45,4 +45,8 @@ public interface Issue {
         .path(path)
         .additionalKeywords(ImmutableList.of(getKey()));
   }
+
+  static ImmutableIssue.Builder builder() {
+    return ImmutableIssue.builder();
+  }
 }
