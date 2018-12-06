@@ -56,7 +56,7 @@ public class JiraDb {
   }
 
   public boolean hasExpectedSchema() {
-    Map<String, Set<String>> requiredTablesAndColumnsMap = Maps.newHashMap();
+    final Map<String, Set<String>> requiredTablesAndColumnsMap = Maps.newHashMap();
     requiredTablesAndColumnsMap.put(
         "jiraissue",
         ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
@@ -88,7 +88,7 @@ public class JiraDb {
     );
 
 
-    Map<String, List<String>> actualTablesAndColumnsMap = query.databaseInspection()
+    final Map<String, List<String>> actualTablesAndColumnsMap = query.databaseInspection()
         .selectFromMetaData(meta -> meta.getColumns(null, null, null, null))
         .listResult(rs -> ImmutablePair.of(rs.getString("TABLE_NAME"), rs.getString("COLUMN_NAME")))
         .stream()
@@ -114,20 +114,17 @@ public class JiraDb {
   }
 
   public Optional<Issue> findIssueByTagName(final String tagName) {
-    Optional<Pair<String, Integer>> projectIssuePair = getJiraProjectIssuePair(tagName);
-
-    if (!projectIssuePair.isPresent()) {
-      return Optional.empty();
-    }
-
-    return query.select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
-            + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
-            + "WHERE project.pkey = ? AND jiraissue.issuenum = ?")
-        .params(
-            projectIssuePair.get().getLeft(),
-            projectIssuePair.get().getRight()
-        )
-        .firstResult(this::buildIssueFromResultSet);
+    return getJiraProjectIssuePair(tagName)
+        .flatMap(projectIssuePair ->
+            query.select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
+                + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
+                + "WHERE project.pkey = ? AND jiraissue.issuenum = ?")
+                .params(
+                    projectIssuePair.getLeft(),
+                    projectIssuePair.getRight()
+                )
+                .firstResult(this::buildIssueFromResultSet)
+        );
   }
 
   public List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults) {
@@ -138,8 +135,7 @@ public class JiraDb {
             startIdExclusive,
             maxResults
         )
-        .listResult(this::buildIssueFromResultSet
-        );
+        .listResult(this::buildIssueFromResultSet);
   }
 
   public Optional<String> findUsername(final String email) {
@@ -209,7 +205,7 @@ public class JiraDb {
   }
 
   private ZoneId getJiraDefaultTimeZone() {
-    Long propertyId = query.select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
+    final Long propertyId = query.select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
         .singleResult(Mappers.singleLong());
 
     String timeZone = query.select("SELECT propertyvalue from propertystring WHERE id = ?")
@@ -219,7 +215,7 @@ public class JiraDb {
     return ZoneId.of(timeZone);
   }
 
-  private ImmutableIssue buildIssueFromResultSet(ResultSet resultSet) throws SQLException {
+  private ImmutableIssue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {
     return ImmutableIssue.builder()
         .id(resultSet.getLong("jiraissue.id"))
         .projectKey(resultSet.getString("project.pkey"))
@@ -229,7 +225,7 @@ public class JiraDb {
         .build();
   }
 
-  private Optional<Pair<String, Integer>> getJiraProjectIssuePair(String tagName) {
+  private Optional<Pair<String, Integer>> getJiraProjectIssuePair(final String tagName) {
     try {
       final String[] parts = tagName.split("-");
       if (parts.length == 2) {
