@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author shane.xie@practiceinsight.io
+ * @author alvin.llobrera@practiceinsight.io
  */
 class JiraDbTest {
 
@@ -79,7 +80,7 @@ class JiraDbTest {
   @Test
   void canUseDatabase() {
     assertThat(jiraDb.canUseDatabase())
-        .as("flyaway should freshly applied the expected Jira DB schema")
+        .as("flyway should freshly applied the expected Jira DB schema")
         .isTrue();
 
     query.update("ALTER TABLE project DROP pkey").run();

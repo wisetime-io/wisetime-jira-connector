@@ -23,11 +23,11 @@ public class FlyAwayJiraTestDbModule extends AbstractModule {
   @Override
   protected void configure() {
     bind(Flyway.class)
-        .toProvider(FlyAwayTeamProvider.class);
+        .toProvider(FlyAwayJiraProvider.class);
   }
 
-  private static class FlyAwayTeamProvider implements Provider<Flyway> {
-    private static final Logger log = LoggerFactory.getLogger(FlyAwayTeamProvider.class);
+  private static class FlyAwayJiraProvider implements Provider<Flyway> {
+    private static final Logger log = LoggerFactory.getLogger(FlyAwayJiraProvider.class);
 
     @Inject
     private Provider<DataSource> dataSourceProvider;

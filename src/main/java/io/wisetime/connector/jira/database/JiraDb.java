@@ -5,19 +5,24 @@
 package io.wisetime.connector.jira.database;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.codejargon.fluentjdbc.api.FluentJdbcException;
 import org.codejargon.fluentjdbc.api.mapper.Mappers;
 import org.codejargon.fluentjdbc.api.query.Query;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,6 +39,8 @@ import io.wisetime.connector.jira.models.Worklog;
  */
 public class JiraDb {
 
+  private final Logger log = LoggerFactory.getLogger(JiraDb.class);
+
   private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   @Inject
@@ -47,51 +54,31 @@ public class JiraDb {
   }
 
   public boolean canUseDatabase() {
-    return hasCorrectSchema(
-        ImmutableList.of(
-            Pair.of(
-                "jiraissue",
-                ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
-            ),
-            Pair.of(
-                "project",
-                ImmutableSet.of("id", "pkey")
-            ),
-            Pair.of(
-                "cwd_user",
-                ImmutableSet.of("user_name", "lower_email_address")
-            ),
-            Pair.of(
-                "worklog",
-                ImmutableSet.of("id", "issueid", "author", "timeworked", "created", "worklogbody")
-            ),
-            Pair.of(
-                "sequence_value_item",
-                ImmutableSet.of("seq_id", "seq_name")
-            )
-        )
+    Map<String, Set<String>> tableAndColumnsMap = Maps.newHashMap();
+    tableAndColumnsMap.put(
+        "jiraissue",
+        ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
     );
-  }
+    tableAndColumnsMap.put(
+        "project",
+        ImmutableSet.of("id", "pkey")
+    );
+    tableAndColumnsMap.put(
+        "cwd_user",
+        ImmutableSet.of("user_name", "lower_email_address")
+    );
+    tableAndColumnsMap.put(
+        "worklog",
+        ImmutableSet.of("id", "issueid", "author", "timeworked", "created", "worklogbody")
+    );
+    tableAndColumnsMap.put(
+        "sequence_value_item",
+        ImmutableSet.of("seq_id", "seq_name")
+    );
 
-  private boolean hasCorrectSchema(List<Pair<String, Set<String>>> tableAndColumnPairs) {
-    return tableAndColumnPairs.stream()
-        .allMatch(tableColumnPair -> hasCorrectSchema(tableColumnPair.getKey(), tableColumnPair.getValue()));
-  }
-
-  private boolean hasCorrectSchema(String tableName, Set<String> columnNames) {
-    boolean hasTable = query.databaseInspection()
-        .selectFromMetaData(meta -> meta.getTables(null, null, null, null))
-        .listResult(rs -> rs.getString("TABLE_NAME"))
+    return tableAndColumnsMap.entrySet()
         .stream()
-        .anyMatch(table -> table.equalsIgnoreCase(tableName));
-
-    boolean hasAllColumns = ImmutableSet.copyOf(
-        query.databaseInspection()
-            .selectFromMetaData(meta -> meta.getColumns(null, null, tableName.toUpperCase(), null))
-            .listResult(rs -> rs.getString("COLUMN_NAME")))
-        .containsAll(columnNames.stream().map(String::toUpperCase).collect(Collectors.toSet()));
-
-    return hasTable && hasAllColumns;
+        .allMatch(tableColumnsPair -> hasCorrectSchema(tableColumnsPair.getKey(), tableColumnsPair.getValue()));
   }
 
   public Optional<Issue> findIssueByTagName(final String tagName) {
@@ -108,13 +95,7 @@ public class JiraDb {
             projectIssuePair.get().getLeft(),
             projectIssuePair.get().getRight()
         )
-        .firstResult(resultSet -> ImmutableIssue.builder()
-            .id(resultSet.getLong(1))
-            .projectKey(resultSet.getString(2))
-            .issueNumber(resultSet.getString(3))
-            .summary(resultSet.getString(4))
-            .timeSpent(resultSet.getLong(5))
-            .build()
+        .firstResult(this::buildIssueFromResultSet
         );
   }
 
@@ -126,13 +107,7 @@ public class JiraDb {
             startIdExclusive,
             maxResults
         )
-        .listResult(resultSet -> ImmutableIssue.builder()
-            .id(resultSet.getLong(1))
-            .projectKey(resultSet.getString(2))
-            .issueNumber(resultSet.getString(3))
-            .summary(resultSet.getString(4))
-            .timeSpent(resultSet.getLong(5))
-            .build()
+        .listResult(this::buildIssueFromResultSet
         );
   }
 
@@ -199,6 +174,16 @@ public class JiraDb {
         .run();
   }
 
+  private ImmutableIssue buildIssueFromResultSet(ResultSet resultSet) throws SQLException {
+    return ImmutableIssue.builder()
+        .id(resultSet.getLong("jiraissue.id"))
+        .projectKey(resultSet.getString("project.pkey"))
+        .issueNumber(resultSet.getString("jiraissue.issuenum"))
+        .summary(resultSet.getString("jiraissue.summary"))
+        .timeSpent(resultSet.getLong("jiraissue.timespent"))
+        .build();
+  }
+
   private Optional<Pair<String, Integer>> getJiraProjectIssuePair(String tagName) {
     try {
       final String[] parts = tagName.split("-");
@@ -206,8 +191,25 @@ public class JiraDb {
         return Optional.of(Pair.of(parts[0], Integer.parseInt(parts[1])));
       }
       return Optional.empty();
-    } catch (Exception ex) {
+    } catch (NumberFormatException ex) {
+      log.warn("Unable to extract Jira issue number from {}.", tagName);
       return Optional.empty();
     }
+  }
+
+  private boolean hasCorrectSchema(String tableName, Set<String> columnNames) {
+    boolean hasTable = query.databaseInspection()
+        .selectFromMetaData(meta -> meta.getTables(null, null, null, null))
+        .listResult(rs -> rs.getString("TABLE_NAME"))
+        .stream()
+        .anyMatch(table -> table.equalsIgnoreCase(tableName));
+
+    boolean hasAllColumns = ImmutableSet.copyOf(
+        query.databaseInspection()
+            .selectFromMetaData(meta -> meta.getColumns(null, null, tableName.toUpperCase(), null))
+            .listResult(rs -> rs.getString("COLUMN_NAME")))
+        .containsAll(columnNames.stream().map(String::toUpperCase).collect(Collectors.toSet()));
+
+    return hasTable && hasAllColumns;
   }
 }

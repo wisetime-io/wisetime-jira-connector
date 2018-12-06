@@ -1,3 +1,5 @@
+-- A schema dump of selected tables from Jira v7.12.3, taken on 5th December 2018
+
 create table if not exists project
 (
 	ID decimal(18) not null
