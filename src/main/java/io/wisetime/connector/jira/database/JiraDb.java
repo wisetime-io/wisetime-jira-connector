@@ -97,10 +97,13 @@ public class JiraDb {
   }
 
   public boolean canQueryDatabase() {
-    query.select("SELECT 1 FROM jiraissue").firstResult(ResultSet::getRow);
-
-    // If above query did not fail, it means we can connect to Jira DB
-    return true;
+    try {
+      query.select("SELECT 1 FROM jiraissue").firstResult(ResultSet::getRow);
+      // If above query did not fail, it means we can connect to Jira DB
+      return true;
+    } catch (Exception ex) {
+      return false;
+    }
   }
 
   public Optional<Issue> findIssueByTagName(final String tagName) {
