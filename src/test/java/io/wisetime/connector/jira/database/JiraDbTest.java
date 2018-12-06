@@ -8,6 +8,8 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import com.github.javafaker.Faker;
+
 import org.codejargon.fluentjdbc.api.query.Query;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JiraDbTest {
 
+  private static final Faker FAKER = new Faker();
   private static final FakeEntities FAKE_ENTITIES = new FakeEntities();
   private static JiraDb jiraDb;
   private static Query query;
@@ -78,29 +81,41 @@ class JiraDbTest {
   }
 
   @Test
-  void canUseDatabase() {
-    assertThat(jiraDb.canUseDatabase())
+  void hasExpectedSchema() {
+    assertThat(jiraDb.hasExpectedSchema())
         .as("flyway should freshly applied the expected Jira DB schema")
         .isTrue();
 
     query.update("ALTER TABLE project DROP pkey").run();
-    assertThat(jiraDb.canUseDatabase())
+    assertThat(jiraDb.hasExpectedSchema())
         .as("a missing column should be detected")
         .isFalse();
 
     query.update("ALTER TABLE project ADD COLUMN pkey varchar(255) null").run();
-    assertThat(jiraDb.canUseDatabase())
+    assertThat(jiraDb.hasExpectedSchema())
         .as("the missing column has been added")
         .isTrue();
   }
 
   @Test
-  void findIssueByTagName() {
-    Long projectId = 1L;
-    Issue issue = FAKE_ENTITIES.randomIssue();
+  void canQueryDatabase() {
+    insertRandomIssueToDb();
 
-    saveProject(projectId, issue.getProjectKey());
-    saveJiraIssue(projectId, issue);
+    assertThat(jiraDb.canQueryDatabase()).isTrue();
+  }
+
+  @Test
+  void canQueryDatabase_tableIsEmpty() {
+    query.update("DELETE FROM jiraissue").run();
+
+    assertThat(jiraDb.canQueryDatabase())
+        .as("should return true even jiraissue table is empty")
+        .isTrue();
+  }
+
+  @Test
+  void findIssueByTagName() {
+    Issue issue = insertRandomIssueToDb();
 
     assertThat(jiraDb.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()))
         .as("should return Jira issue if existing in DB")
@@ -241,6 +256,15 @@ class JiraDbTest {
             )
         )
         .run();
+  }
+
+  private Issue insertRandomIssueToDb() {
+    Long projectId = FAKER.number().randomNumber();
+    Issue issue = FAKE_ENTITIES.randomIssue();
+
+    saveProject(projectId, issue.getProjectKey());
+    saveJiraIssue(projectId, issue);
+    return issue;
   }
 
   private Optional<Worklog> getWorklog(long worklogId) {

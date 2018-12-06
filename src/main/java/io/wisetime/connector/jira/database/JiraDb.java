@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.codejargon.fluentjdbc.api.FluentJdbcException;
 import org.codejargon.fluentjdbc.api.mapper.Mappers;
@@ -30,6 +31,10 @@ import java.util.stream.Collectors;
 import io.wisetime.connector.jira.models.ImmutableIssue;
 import io.wisetime.connector.jira.models.Issue;
 import io.wisetime.connector.jira.models.Worklog;
+
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Simple, unsophisticated access to the Jira database.
@@ -53,32 +58,49 @@ public class JiraDb {
     query.transaction().inNoResult(runnable);
   }
 
-  public boolean canUseDatabase() {
-    Map<String, Set<String>> tableAndColumnsMap = Maps.newHashMap();
-    tableAndColumnsMap.put(
+  public boolean hasExpectedSchema() {
+    Map<String, Set<String>> requiredTablesAndColumnsMap = Maps.newHashMap();
+    requiredTablesAndColumnsMap.put(
         "jiraissue",
         ImmutableSet.of("id", "issuenum", "summary", "timespent", "project")
     );
-    tableAndColumnsMap.put(
+    requiredTablesAndColumnsMap.put(
         "project",
         ImmutableSet.of("id", "pkey")
     );
-    tableAndColumnsMap.put(
+    requiredTablesAndColumnsMap.put(
         "cwd_user",
         ImmutableSet.of("user_name", "lower_email_address")
     );
-    tableAndColumnsMap.put(
+    requiredTablesAndColumnsMap.put(
         "worklog",
         ImmutableSet.of("id", "issueid", "author", "timeworked", "created", "worklogbody")
     );
-    tableAndColumnsMap.put(
+    requiredTablesAndColumnsMap.put(
         "sequence_value_item",
         ImmutableSet.of("seq_id", "seq_name")
     );
 
-    return tableAndColumnsMap.entrySet()
+    Map<String, List<String>> actualTablesAndColumnsMap = query.databaseInspection()
+        .selectFromMetaData(meta -> meta.getColumns(null, null, null, null))
+        .listResult(rs -> ImmutablePair.of(rs.getString("TABLE_NAME"), rs.getString("COLUMN_NAME")))
         .stream()
-        .allMatch(tableColumnsPair -> hasCorrectSchema(tableColumnsPair.getKey(), tableColumnsPair.getValue()));
+        .filter(pair -> requiredTablesAndColumnsMap.containsKey(pair.getKey().toLowerCase()))
+        .collect(groupingBy(ImmutablePair::getKey, mapping(ImmutablePair::getValue, toList())));
+
+    return requiredTablesAndColumnsMap.entrySet().stream()
+        // Values from MetaDataResultSet are in uppercase
+        .allMatch(entry -> actualTablesAndColumnsMap.containsKey(entry.getKey().toUpperCase()) &&
+                actualTablesAndColumnsMap.get(entry.getKey().toUpperCase()).containsAll(
+                    entry.getValue().stream().map(String::toUpperCase).collect(Collectors.toSet()))
+        );
+  }
+
+  public boolean canQueryDatabase() {
+    query.select("SELECT 1 FROM jiraissue").firstResult(ResultSet::getRow);
+
+    // If above query did not fail, it means we can connect to Jira DB
+    return true;
   }
 
   public Optional<Issue> findIssueByTagName(final String tagName) {
@@ -195,21 +217,5 @@ public class JiraDb {
       log.warn("Unable to extract Jira issue number from {}.", tagName);
       return Optional.empty();
     }
-  }
-
-  private boolean hasCorrectSchema(String tableName, Set<String> columnNames) {
-    boolean hasTable = query.databaseInspection()
-        .selectFromMetaData(meta -> meta.getTables(null, null, null, null))
-        .listResult(rs -> rs.getString("TABLE_NAME"))
-        .stream()
-        .anyMatch(table -> table.equalsIgnoreCase(tableName));
-
-    boolean hasAllColumns = ImmutableSet.copyOf(
-        query.databaseInspection()
-            .selectFromMetaData(meta -> meta.getColumns(null, null, tableName.toUpperCase(), null))
-            .listResult(rs -> rs.getString("COLUMN_NAME")))
-        .containsAll(columnNames.stream().map(String::toUpperCase).collect(Collectors.toSet()));
-
-    return hasTable && hasAllColumns;
   }
 }
