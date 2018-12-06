@@ -35,8 +35,6 @@ public class FlywayJiraTestDbModule extends AbstractModule {
       flyway.setBaselineVersion(MigrationVersion.fromVersion("0"));
       flyway.setBaselineOnMigrate(true);
       flyway.setLocations("jira_db_schema/");
-      flyway.migrate();
-      flyway.validate();
       return flyway;
     }
   }

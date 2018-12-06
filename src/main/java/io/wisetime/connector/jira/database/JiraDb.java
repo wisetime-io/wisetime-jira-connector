@@ -81,12 +81,10 @@ public class JiraDb {
         "propertyentry",
         ImmutableSet.of("id", "property_key")
     );
-
     requiredTablesAndColumnsMap.put(
         "propertystring",
         ImmutableSet.of("id", "propertyvalue")
     );
-
 
     final Map<String, List<String>> actualTablesAndColumnsMap = query.databaseInspection()
         .selectFromMetaData(meta -> meta.getColumns(null, null, null, null))
