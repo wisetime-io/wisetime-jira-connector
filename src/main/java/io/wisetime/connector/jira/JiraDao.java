@@ -47,13 +47,13 @@ import static java.util.stream.Collectors.toList;
  * @author shane.xie@practiceinsight.io
  * @author alvin.llobrera@practiceinsight.io
  */
-class JiraDbDao {
-  private final Logger log = LoggerFactory.getLogger(JiraDbDao.class);
+class JiraDao {
+  private final Logger log = LoggerFactory.getLogger(JiraDao.class);
   private final DateTimeFormatter dateTimeFormatter;
   private final FluentJdbc fluentJdbc;
 
   @Inject
-  JiraDbDao(DataSource dataSource) {
+  JiraDao(DataSource dataSource) {
     fluentJdbc = new FluentJdbcBuilder().connectionProvider(dataSource).build();
     dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   }
@@ -248,7 +248,6 @@ class JiraDbDao {
     return fluentJdbc.query();
   }
 
-
   /**
    * Models a Jira issue.
    *
@@ -308,7 +307,5 @@ class JiraDbDao {
     static ImmutableWorklog.Builder builder() {
       return ImmutableWorklog.builder();
     }
-
   }
-
 }

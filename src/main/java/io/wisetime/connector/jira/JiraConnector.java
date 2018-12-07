@@ -34,8 +34,8 @@ import io.wisetime.generated.connect.UpsertTagRequest;
 import spark.Request;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
-import static io.wisetime.connector.jira.JiraDbDao.Issue;
-import static io.wisetime.connector.jira.JiraDbDao.Worklog;
+import static io.wisetime.connector.jira.JiraDao.Issue;
+import static io.wisetime.connector.jira.JiraDao.Worklog;
 
 /**
  * WiseTime Connector implementation for Jira.
@@ -53,11 +53,11 @@ public class JiraConnector implements WiseTimeConnector {
   private TemplateFormatter templateFormatter;
 
   @Inject
-  private JiraDbDao jiraDbDao;
+  private JiraDao jiraDao;
 
   @Override
   public void init(final ConnectorModule connectorModule) {
-    Preconditions.checkArgument(jiraDbDao.hasExpectedSchema(),
+    Preconditions.checkArgument(jiraDao.hasExpectedSchema(),
         "Jira Database schema is unsupported by this connector");
 
     this.apiClient = connectorModule.getApiClient();
@@ -66,15 +66,15 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called by the WiseTime Connector library on a regular schedule. Finds Jira issues that haven't been synced and creates
-   * matching tags for them in WiseTime.
+   * Called by the WiseTime Connector library on a regular schedule.
+   * Finds Jira issues that haven't been synced and creates matching tags for them in WiseTime.
    */
   @Override
   public void performTagUpdate() {
     while (true) {
       final Optional<Long> lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY);
 
-      final List<Issue> issues = jiraDbDao.findIssuesOrderedById(
+      final List<Issue> issues = jiraDao.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
           tagUpsertBatchSize()
       );
@@ -103,8 +103,8 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called by the WiseTime Connector library whenever a user posts time to our team. Creates a Jira Worklog entry for the
-   * relevant issue.
+   * Called by the WiseTime Connector library whenever a user posts time to our team.
+   * Updates the relevant issue and creates a Jira Worklog entry for it.
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
@@ -125,7 +125,7 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Cannot post time group with no time rows");
     }
 
-    final Optional<String> author = jiraDbDao.findUsername(userPostedTime.getUser().getExternalId());
+    final Optional<String> author = jiraDao.findUsername(userPostedTime.getUser().getExternalId());
     if (!author.isPresent()) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("User does not exist in Jira");
@@ -135,7 +135,7 @@ public class JiraConnector implements WiseTimeConnector {
 
     final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
       final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
-      jiraDbDao.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
+      jiraDao.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
       return issue;
     };
 
@@ -149,18 +149,18 @@ public class JiraConnector implements WiseTimeConnector {
           .timeWorked(workedTime)
           .build();
 
-      jiraDbDao.createWorklog(worklog);
+      jiraDao.createWorklog(worklog);
       return forIssue;
     };
 
     try {
-      jiraDbDao.asTransaction(() ->
+      jiraDao.asTransaction(() ->
           userPostedTime
               .getTags()
               .stream()
 
               .map(Tag::getName)
-              .map(jiraDbDao::findIssueByTagName)
+              .map(jiraDao::findIssueByTagName)
 
               // Fail the transaction if one of the tags doesn't have a matching issue
               .map(Optional::get)
@@ -182,7 +182,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDbDao.hasConfiguredTimeZone();
+    return jiraDao.hasConfiguredTimeZone();
   }
 
   static double tagDurationSecs(final TimeGroup timeGroup) {
@@ -226,6 +226,4 @@ public class JiraConnector implements WiseTimeConnector {
         .min(Integer::compareTo)
         .map(hour -> LocalDateTime.parse(String.valueOf(hour), ACTIVITY_HOUR_FORMATTER));
   }
-
-
 }

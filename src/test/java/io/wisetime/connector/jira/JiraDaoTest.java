@@ -40,20 +40,20 @@ import io.wisetime.generated.connect.UpsertTagRequest;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraDbModule;
-import static io.wisetime.connector.jira.JiraDbDao.Issue;
-import static io.wisetime.connector.jira.JiraDbDao.Worklog;
+import static io.wisetime.connector.jira.JiraDao.Issue;
+import static io.wisetime.connector.jira.JiraDao.Worklog;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author shane.xie@practiceinsight.io
  * @author alvin.llobrera@practiceinsight.io
  */
-class JiraDbDaoTest {
+class JiraDaoTest {
 
   private static final String TEST_JDBC_URL = "jdbc:h2:mem:test_jira_db;DB_CLOSE_DELAY=-1";
   private static final RandomDataGenerator RANDOM_DATA_GENERATOR = new RandomDataGenerator();
   private static final Faker FAKER = new Faker();
-  private static JiraDbDao jiraDbDao;
+  private static JiraDao jiraDao;
   private static FluentJdbc fluentJdbc;
 
   @BeforeAll
@@ -67,7 +67,7 @@ class JiraDbDaoTest {
         new JiraDbModule(), new FlywayJiraTestDbModule()
     );
 
-    jiraDbDao = injector.getInstance(JiraDbDao.class);
+    jiraDao = injector.getInstance(JiraDao.class);
     fluentJdbc = new FluentJdbcBuilder().connectionProvider(injector.getInstance(DataSource.class)).build();
 
 
@@ -119,36 +119,36 @@ class JiraDbDaoTest {
 
   @Test
   void hasExpectedSchema() {
-    assertThat(jiraDbDao.hasExpectedSchema())
+    assertThat(jiraDao.hasExpectedSchema())
         .as("Flyway should freshly applied the expected Jira DB schema")
         .isTrue();
 
     Query query = fluentJdbc.query();
     query.update("ALTER TABLE project DROP pkey").run();
-    assertThat(jiraDbDao.hasExpectedSchema())
+    assertThat(jiraDao.hasExpectedSchema())
         .as("A missing column should be detected")
         .isFalse();
 
     query.update("ALTER TABLE project ADD COLUMN pkey varchar(255) null").run();
-    assertThat(jiraDbDao.hasExpectedSchema())
+    assertThat(jiraDao.hasExpectedSchema())
         .as("The missing column has been added")
         .isTrue();
   }
 
   @Test
   void hasConfiguredTimeZone() {
-    assertThat(jiraDbDao.hasConfiguredTimeZone())
+    assertThat(jiraDao.hasConfiguredTimeZone())
         .as("No timezone is set")
         .isFalse();
 
     saveDefaultTimeZone(1, "Asia/Manila");
-    assertThat(jiraDbDao.hasConfiguredTimeZone())
+    assertThat(jiraDao.hasConfiguredTimeZone())
         .as("Timezone is set")
         .isTrue();
 
     removedDefaultTimeZone(1);
     saveDefaultTimeZone(1, "Asia/Perth");
-    assertThat(jiraDbDao.hasConfiguredTimeZone())
+    assertThat(jiraDao.hasConfiguredTimeZone())
         .as("Timezone is unrecognized")
         .isFalse();
   }
@@ -157,18 +157,18 @@ class JiraDbDaoTest {
   void findIssueByTagName() {
     final Issue issue = insertRandomIssueToDb();
 
-    assertThat(jiraDbDao.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()))
+    assertThat(jiraDao.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()))
         .as("Should return Jira issue if it exists in DB")
         .contains(issue);
-    assertThat(jiraDbDao.findIssueByTagName(issue.getProjectKey() + "X-" + issue.getIssueNumber()))
+    assertThat(jiraDao.findIssueByTagName(issue.getProjectKey() + "X-" + issue.getIssueNumber()))
         .as("Should return empty if tag name is not in DB")
         .isEmpty();
   }
 
   @Test
   void findIssueByTagName_incorrectFormat() {
-    assertThat(jiraDbDao.findIssueByTagName("IAMAJIRAISSUE")).isEmpty();
-    assertThat(jiraDbDao.findIssueByTagName("I-AM-A-JIRAISSUE")).isEmpty();
+    assertThat(jiraDao.findIssueByTagName("IAMAJIRAISSUE")).isEmpty();
+    assertThat(jiraDao.findIssueByTagName("I-AM-A-JIRAISSUE")).isEmpty();
   }
 
   @Test
@@ -187,13 +187,13 @@ class JiraDbDaoTest {
         .peek(issue -> saveJiraIssue(projectId, issue))
         .collect(Collectors.toList());
 
-    assertThat(jiraDbDao.findIssuesOrderedById(0, 100))
+    assertThat(jiraDao.findIssuesOrderedById(0, 100))
         .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues);
-    assertThat(jiraDbDao.findIssuesOrderedById(25, 5))
+    assertThat(jiraDao.findIssuesOrderedById(25, 5))
         .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues.subList(25, 30));
-    assertThat(jiraDbDao.findIssuesOrderedById(101, 5))
+    assertThat(jiraDao.findIssuesOrderedById(101, 5))
         .as("No Jira issue should be returned when no issue matches the start ID")
         .isEmpty();
   }
@@ -204,13 +204,13 @@ class JiraDbDaoTest {
         .params("foobar", "foobar@baz.com")
         .run();
 
-    assertThat(jiraDbDao.findUsername("foobar@baz.com").get())
+    assertThat(jiraDao.findUsername("foobar@baz.com").get())
         .as("Username should be returned if it exists in DB.")
         .isEqualTo("foobar");
-    assertThat(jiraDbDao.findUsername("Foobar@baz.com").get())
+    assertThat(jiraDao.findUsername("Foobar@baz.com").get())
         .as("Email should not be case sensitive")
         .isEqualTo("foobar");
-    assertThat(jiraDbDao.findUsername("foo.bar@baz.com"))
+    assertThat(jiraDao.findUsername("foo.bar@baz.com"))
         .as("Should return empty if email is not found in DB")
         .isEmpty();
   }
@@ -222,9 +222,9 @@ class JiraDbDaoTest {
     saveProject(projectId, issue.getProjectKey());
     saveJiraIssue(projectId, issue);
 
-    jiraDbDao.updateIssueTimeSpent(issue.getId(), 700);
+    jiraDao.updateIssueTimeSpent(issue.getId(), 700);
 
-    assertThat(jiraDbDao.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()).get().getTimeSpent())
+    assertThat(jiraDao.findIssueByTagName(issue.getProjectKey() + "-" + issue.getIssueNumber()).get().getTimeSpent())
         .as("Should be able to update total time spent")
         .isEqualTo(700);
   }
@@ -242,10 +242,10 @@ class JiraDbDaoTest {
         .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
         .build();
 
-    final Optional<Long> startingWorklogId = jiraDbDao.getWorklogSeqId();
+    final Optional<Long> startingWorklogId = jiraDao.getWorklogSeqId();
     assertThat(startingWorklogId).isEmpty();
 
-    jiraDbDao.createWorklog(workLogWithSydneyTz);
+    jiraDao.createWorklog(workLogWithSydneyTz);
 
     assertThat(getWorklog(10299).get()) // 10299 is the starting worklog seq id we set if table is empty
         .as("Worklog should be saved with created time set the zone specified")
@@ -262,18 +262,18 @@ class JiraDbDaoTest {
 
     // Create worklog
     final Worklog workLog1WithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
-    jiraDbDao.createWorklog(workLog1WithSydneyTz);
+    jiraDao.createWorklog(workLog1WithSydneyTz);
 
     Worklog workLog2WithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
     Worklog workLog2WithPerthTz = Worklog.builder().from(workLog2WithSydneyTz)
         .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), perthTz).toLocalDateTime().withNano(0))
         .build();
-    final Optional<Long> currentWorkLogId = jiraDbDao.getWorklogSeqId();
+    final Optional<Long> currentWorkLogId = jiraDao.getWorklogSeqId();
     assertThat(currentWorkLogId)
         .as("Should contain the worklog ID of the previously created worklog")
         .isPresent();
 
-    jiraDbDao.createWorklog(workLog2WithSydneyTz);
+    jiraDao.createWorklog(workLog2WithSydneyTz);
 
     assertThat(getWorklog(currentWorkLogId.get() + 199).get()) // we increment 199 to generate new worklog seq ID
         .as("Worklog should be saved with created time set in the timezone specified")

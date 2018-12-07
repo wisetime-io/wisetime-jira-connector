@@ -36,7 +36,7 @@ public class ConnectorLauncher {
   }
 
   /**
-   * Configuration keys for the WiseTime Jira Connector
+   * Configuration keys for the WiseTime Jira Connector.
    *
    * @author shane.xie@practiceinsight.io
    */
@@ -60,9 +60,8 @@ public class ConnectorLauncher {
     }
   }
 
-
   /**
-   * Bind the jira database connection via DI.
+   * Bind the Jira database connection via DI.
    */
   public static class JiraDbModule extends AbstractModule {
     private static final Logger log = LoggerFactory.getLogger(JiraDbModule.class);

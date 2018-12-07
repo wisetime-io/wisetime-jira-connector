@@ -21,8 +21,8 @@ import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
 import io.wisetime.generated.connect.User;
 
-import static io.wisetime.connector.jira.JiraDbDao.Issue;
-import static io.wisetime.connector.jira.JiraDbDao.Worklog;
+import static io.wisetime.connector.jira.JiraDao.Issue;
+import static io.wisetime.connector.jira.JiraDao.Worklog;
 
 /**
  * @author shane.xie@practiceinsight.io

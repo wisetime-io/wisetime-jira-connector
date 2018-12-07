@@ -31,8 +31,8 @@ import io.wisetime.generated.connect.User;
 import spark.Request;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
-import static io.wisetime.connector.jira.JiraDbDao.Issue;
-import static io.wisetime.connector.jira.JiraDbDao.Worklog;
+import static io.wisetime.connector.jira.JiraDao.Issue;
+import static io.wisetime.connector.jira.JiraDao.Worklog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
 class JiraConnectorPostTimeTest {
 
   private static RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
-  private static JiraDbDao jiraDbDao = mock(JiraDbDao.class);
+  private static JiraDao jiraDao = mock(JiraDao.class);
   private static ApiClient apiClient = mock(ApiClient.class);
   private static TemplateFormatter templateFormatter = mock(TemplateFormatter.class);
   private static JiraConnector connector;
@@ -75,11 +75,11 @@ class JiraConnectorPostTimeTest {
 
 
     connector = Guice.createInjector(binder -> {
-      binder.bind(JiraDbDao.class).toProvider(() -> jiraDbDao);
+      binder.bind(JiraDao.class).toProvider(() -> jiraDao);
     }).getInstance(JiraConnector.class);
 
     // Ensure JiraConnector#init will not fail
-    doReturn(true).when(jiraDbDao).hasExpectedSchema();
+    doReturn(true).when(jiraDao).hasExpectedSchema();
 
     connector.init(new ConnectorModule(apiClient, templateFormatter, mock(ConnectorStore.class)));
   }
@@ -99,13 +99,13 @@ class JiraConnectorPostTimeTest {
   @BeforeEach
   void setUpTest() {
     reset(templateFormatter);
-    reset(jiraDbDao);
+    reset(jiraDao);
 
     // Ensure that code in the transaction lambda gets exercised
     doAnswer(invocation -> {
       invocation.<Runnable>getArgument(0).run();
       return null;
-    }).when(jiraDbDao).asTransaction(any(Runnable.class));
+    }).when(jiraDao).asTransaction(any(Runnable.class));
   }
 
   @Test
@@ -166,7 +166,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_cant_find_user() {
-    when(jiraDbDao.findUsername(anyString())).thenReturn(Optional.empty());
+    when(jiraDao.findUsername(anyString())).thenReturn(Optional.empty());
 
     assertThat(connector.postTime(fakeRequest(), randomDataGenerator.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
@@ -177,7 +177,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_cant_find_issue() {
-    when(jiraDbDao.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+    when(jiraDao.findIssueByTagName(anyString())).thenReturn(Optional.empty());
 
     assertThat(connector.postTime(fakeRequest(), randomDataGenerator.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
@@ -190,15 +190,15 @@ class JiraConnectorPostTimeTest {
   void postTime_db_transaction_error() {
     final TimeGroup timeGroup = randomDataGenerator.randomTimeGroup();
 
-    when(jiraDbDao.findUsername(anyString()))
+    when(jiraDao.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     final Tag tag = randomDataGenerator.randomTag("/Jira/");
     final Issue issue = randomDataGenerator.randomIssue(tag.getName());
 
-    when(jiraDbDao.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
+    when(jiraDao.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
     when(templateFormatter.format(any(TimeGroup.class))).thenReturn("Work log body");
-    doThrow(new RuntimeException("Test exception")).when(jiraDbDao).createWorklog(any(Worklog.class));
+    doThrow(new RuntimeException("Test exception")).when(jiraDao).createWorklog(any(Worklog.class));
 
     final PostResult result = connector.postTime(fakeRequest(), randomDataGenerator.randomTimeGroup());
 
@@ -228,13 +228,13 @@ class JiraConnectorPostTimeTest {
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
         .totalDurationSecs(1000);
 
-    when(jiraDbDao.findUsername(anyString()))
+    when(jiraDao.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     final Issue issue1 = randomDataGenerator.randomIssue(tag1.getName());
     final Issue issue2 = randomDataGenerator.randomIssue(tag1.getName());
 
-    when(jiraDbDao.findIssueByTagName(anyString()))
+    when(jiraDao.findIssueByTagName(anyString()))
         .thenReturn(Optional.of(issue1))
         .thenReturn(Optional.of(issue2));
 
@@ -247,7 +247,7 @@ class JiraConnectorPostTimeTest {
 
     // Verify worklog creation
     ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
-    verify(jiraDbDao, times(2)).createWorklog(worklogCaptor.capture());
+    verify(jiraDao, times(2)).createWorklog(worklogCaptor.capture());
     List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
 
     assertThat(createdWorklogs.get(0).getIssueId())
@@ -277,7 +277,7 @@ class JiraConnectorPostTimeTest {
 
     ArgumentCaptor<Long> idUpdateIssueCaptor = ArgumentCaptor.forClass(Long.class);
     ArgumentCaptor<Long> timeSpentUpdateIssueCaptor = ArgumentCaptor.forClass(Long.class);
-    verify(jiraDbDao, times(2))
+    verify(jiraDao, times(2))
         .updateIssueTimeSpent(idUpdateIssueCaptor.capture(), timeSpentUpdateIssueCaptor.capture());
 
     List<Long> updatedIssueIds = idUpdateIssueCaptor.getAllValues();
@@ -292,8 +292,8 @@ class JiraConnectorPostTimeTest {
   }
 
   private void verifyJiraNotUpdated() {
-    verify(jiraDbDao, never()).updateIssueTimeSpent(anyLong(), anyLong());
-    verify(jiraDbDao, never()).createWorklog(any(Worklog.class));
+    verify(jiraDao, never()).updateIssueTimeSpent(anyLong(), anyLong());
+    verify(jiraDao, never()).createWorklog(any(Worklog.class));
   }
 
   private Request fakeRequest() {
