@@ -11,15 +11,12 @@ import com.github.javafaker.Faker;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import io.wisetime.connector.testutils.FakeEntities;
 import io.wisetime.generated.connect.Tag;
-import io.wisetime.generated.connect.TimeGroup;
-import io.wisetime.generated.connect.TimeRow;
-import io.wisetime.generated.connect.User;
 
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
@@ -29,55 +26,12 @@ import static io.wisetime.connector.jira.JiraDao.Worklog;
  */
 class RandomDataGenerator {
 
+  private static final FakeEntities FAKE_ENTITIES = new FakeEntities();
   private static final Faker FAKER = new Faker();
   private static final String TAG_PATH = "/Jira/";
 
-  TimeGroup randomTimeGroup() {
-    final List<TimeRow> timeRows = randomEntities(() -> randomTimeRow(), 1, 10);
-
-    return new TimeGroup()
-        .callerKey(FAKER.bothify("#?#?#?#?#?"))
-        .groupId(UUID.randomUUID().toString())
-        .description(FAKER.gameOfThrones().quote())
-        .totalDurationSecs(timeRows.stream().mapToInt(TimeRow::getDurationSecs).sum())
-        .groupName(FAKER.gameOfThrones().city())
-        .tags(randomEntities(() -> randomTag(TAG_PATH), 1, 3))
-        .user(randomUser())
-        .timeRows(timeRows)
-        .narrativeType(randomEnum(TimeGroup.NarrativeTypeEnum.class))
-        .durationSplitStrategy(randomEnum(TimeGroup.DurationSplitStrategyEnum.class));
-  }
-
-  Tag randomTag(final String path) {
-    return new Tag()
-        .path(path)
-        .name(FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999))
-        .description(FAKER.gameOfThrones().character());
-  }
-
-  User randomUser() {
-    final String firstName = FAKER.name().firstName();
-    final String lastName = FAKER.name().lastName();
-    return new User()
-        .name(firstName + " " + lastName)
-        .email(FAKER.internet().emailAddress(firstName))
-        .externalId(FAKER.internet().emailAddress(firstName + "." + lastName))
-        .businessRole(FAKER.company().profession())
-        .experienceWeightingPercent(FAKER.random().nextInt(0, 100));
-  }
-
-  TimeRow randomTimeRow() {
-    return new TimeRow()
-        .activity(FAKER.company().catchPhrase())
-        .activityHour(2018110100 + FAKER.random().nextInt(1, 23))
-        .durationSecs(FAKER.random().nextInt(120, 600))
-        .submittedDate(Long.valueOf(FAKER.numerify("20180#1#1#5#2####")))
-        .modifier(FAKER.gameOfThrones().dragon())
-        .source(randomEnum(TimeRow.SourceEnum.class));
-  }
-
   Issue randomIssue() {
-    final Tag tag = randomTag(TAG_PATH);
+    final Tag tag = FAKE_ENTITIES.randomTag(TAG_PATH);
     return randomIssue(tag.getName());
   }
 

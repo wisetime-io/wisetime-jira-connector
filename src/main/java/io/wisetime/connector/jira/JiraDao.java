@@ -250,8 +250,6 @@ class JiraDao {
 
   /**
    * Models a Jira issue.
-   *
-   * @author shane.xie@practiceinsight.io
    */
   @Value.Immutable
   public interface Issue {
@@ -288,8 +286,6 @@ class JiraDao {
 
   /**
    * Models a Jira Worklog.
-   *
-   * @author shane.xie@practiceinsight.io
    */
   @Value.Immutable
   public interface Worklog {

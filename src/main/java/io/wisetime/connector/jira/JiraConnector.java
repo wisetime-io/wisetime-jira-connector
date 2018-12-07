@@ -29,13 +29,14 @@ import io.wisetime.connector.integrate.WiseTimeConnector;
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
-import io.wisetime.generated.connect.TimeRow;
 import io.wisetime.generated.connect.UpsertTagRequest;
 import spark.Request;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
+import static io.wisetime.connector.utils.ActivityTimeCalculator.startTime;
+import static io.wisetime.connector.utils.TagDurationCalculator.tagDuration;
 
 /**
  * WiseTime Connector implementation for Jira.
@@ -119,7 +120,7 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
-    final Optional<LocalDateTime> activityStartTime = timeGroupStartHour(userPostedTime);
+    final Optional<LocalDateTime> activityStartTime = startTime(userPostedTime);
     if (!activityStartTime.isPresent()) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Cannot post time group with no time rows");
@@ -131,7 +132,7 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("User does not exist in Jira");
     }
 
-    final long workedTime = Math.round(tagDurationSecs(userPostedTime));
+    final long workedTime = Math.round(tagDuration(userPostedTime));
 
     final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
       final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
@@ -185,22 +186,6 @@ public class JiraConnector implements WiseTimeConnector {
     return jiraDao.hasConfiguredTimeZone();
   }
 
-  static double tagDurationSecs(final TimeGroup timeGroup) {
-    if (timeGroup.getTags().isEmpty()) {
-      return 0;
-    }
-    final double durationWithExperienceRating =
-        timeGroup.getTotalDurationSecs() * timeGroup.getUser().getExperienceWeightingPercent() / 100.;
-
-    switch (timeGroup.getDurationSplitStrategy()) {
-      case WHOLE_DURATION_TO_EACH_TAG:
-        return durationWithExperienceRating;
-      case DIVIDE_BETWEEN_TAGS:
-      default:
-        return durationWithExperienceRating / timeGroup.getTags().size();
-    }
-  }
-
   private int tagUpsertBatchSize() {
     return RuntimeConfig
         .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
@@ -216,14 +201,5 @@ public class JiraConnector implements WiseTimeConnector {
 
   private Optional<String> callerKey() {
     return RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
-  }
-
-  private Optional<LocalDateTime> timeGroupStartHour(final TimeGroup timeGroup) {
-    return timeGroup
-        .getTimeRows()
-        .stream()
-        .map(TimeRow::getActivityHour)
-        .min(Integer::compareTo)
-        .map(hour -> LocalDateTime.parse(String.valueOf(hour), ACTIVITY_HOUR_FORMATTER));
   }
 }
