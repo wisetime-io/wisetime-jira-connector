@@ -55,11 +55,9 @@ class JiraConnectorPerformTagUpdateTest {
 
   @BeforeAll
   static void setUp() {
-    System.clearProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey(), Integer.valueOf(100).toString());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey(), "/test/path/");
-
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, Integer.valueOf(100).toString());
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
+    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
     assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
         .as("CALLER_KEY empty value expected")
@@ -81,18 +79,15 @@ class JiraConnectorPerformTagUpdateTest {
 
   @AfterAll
   static void tearDown() {
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey());
-    RuntimeConfig.rebuild();
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH);
 
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE empty result expected")
         .isNotPresent();
     assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.TAG_UPSERT_PATH))
         .isNotPresent();
-
   }
-
 
   @BeforeEach
   void setUpTest() {

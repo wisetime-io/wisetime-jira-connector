@@ -109,8 +109,8 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
-    Optional<String> callerKeyOpt = callerKey();
-    if (callerKeyOpt.isPresent() && !callerKeyOpt.get().equals(userPostedTime.getCallerKey())) {
+    Optional<String> callerKey = callerKey();
+    if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Invalid caller key in post time webhook call");
     }

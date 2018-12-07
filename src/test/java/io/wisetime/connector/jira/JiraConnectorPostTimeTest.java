@@ -62,10 +62,9 @@ class JiraConnectorPostTimeTest {
 
   @BeforeAll
   static void setUp() {
-    System.clearProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey(), Integer.valueOf(100).toString());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey(), "/test/path/");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, Integer.valueOf(100).toString());
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
+    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
     assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
         .as("CALLER_KEY empty value expected")
@@ -87,9 +86,9 @@ class JiraConnectorPostTimeTest {
 
   @AfterAll
   static void tearDown() {
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey());
-    RuntimeConfig.rebuild();
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH);
+
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE empty result expected")
         .isNotPresent();
@@ -122,8 +121,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_invalid_caller_key_should_fail() {
-    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(ConnectorConfigKey.CALLER_KEY, "caller-key");
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
@@ -139,8 +137,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_valid_caller_key_should_succeed() {
-    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(ConnectorConfigKey.CALLER_KEY, "caller-key");
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
