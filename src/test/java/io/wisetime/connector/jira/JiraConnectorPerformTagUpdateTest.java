@@ -55,7 +55,7 @@ class JiraConnectorPerformTagUpdateTest {
 
   @BeforeAll
   static void setUp() {
-    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, Integer.valueOf(100).toString());
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
     RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
