@@ -24,6 +24,7 @@ import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.template.TemplateFormatter;
+import io.wisetime.connector.testutils.FakeEntities;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
@@ -52,11 +53,12 @@ import static org.mockito.Mockito.when;
  */
 class JiraConnectorPostTimeTest {
 
-  private static RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
   private static JiraDao jiraDao = mock(JiraDao.class);
   private static ApiClient apiClient = mock(ApiClient.class);
   private static TemplateFormatter templateFormatter = mock(TemplateFormatter.class);
   private static JiraConnector connector;
+  private static FakeEntities fakeEntities = new FakeEntities();
+  private static RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
 
   @BeforeAll
   static void setUp() {
@@ -72,7 +74,6 @@ class JiraConnectorPostTimeTest {
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE should be set to 100")
         .contains(100);
-
 
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDao.class).toProvider(() -> jiraDao);
@@ -110,7 +111,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_without_tags_should_succeed() {
-    final TimeGroup groupWithNoTags = randomDataGenerator.randomTimeGroup().tags(ImmutableList.of());
+    final TimeGroup groupWithNoTags = fakeEntities.randomTimeGroup().tags(ImmutableList.of());
 
     assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
         .isEqualTo(PostResult.SUCCESS)
@@ -124,7 +125,7 @@ class JiraConnectorPostTimeTest {
     System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
     RuntimeConfig.rebuild();
 
-    final TimeGroup groupWithNoTags = randomDataGenerator
+    final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
         .callerKey("wrong-key")
         .tags(ImmutableList.of());
@@ -141,7 +142,7 @@ class JiraConnectorPostTimeTest {
     System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
     RuntimeConfig.rebuild();
 
-    final TimeGroup groupWithNoTags = randomDataGenerator
+    final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
         .callerKey("caller-key")
         .tags(ImmutableList.of());
@@ -155,7 +156,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_without_time_rows_should_fail() {
-    final TimeGroup groupWithNoTimeRows = randomDataGenerator.randomTimeGroup().timeRows(ImmutableList.of());
+    final TimeGroup groupWithNoTimeRows = fakeEntities.randomTimeGroup().timeRows(ImmutableList.of());
 
     assertThat(connector.postTime(fakeRequest(), groupWithNoTimeRows))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
@@ -168,7 +169,7 @@ class JiraConnectorPostTimeTest {
   void postTime_cant_find_user() {
     when(jiraDao.findUsername(anyString())).thenReturn(Optional.empty());
 
-    assertThat(connector.postTime(fakeRequest(), randomDataGenerator.randomTimeGroup()))
+    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
         .as("Can't post time because user doesn't exist in Jira");
 
@@ -179,7 +180,7 @@ class JiraConnectorPostTimeTest {
   void postTime_cant_find_issue() {
     when(jiraDao.findIssueByTagName(anyString())).thenReturn(Optional.empty());
 
-    assertThat(connector.postTime(fakeRequest(), randomDataGenerator.randomTimeGroup()))
+    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
         .as("Can't post time because tag doesn't match any issue in Jira");
 
@@ -188,19 +189,19 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_db_transaction_error() {
-    final TimeGroup timeGroup = randomDataGenerator.randomTimeGroup();
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
 
     when(jiraDao.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
-    final Tag tag = randomDataGenerator.randomTag("/Jira/");
+    final Tag tag = fakeEntities.randomTag("/Jira/");
     final Issue issue = randomDataGenerator.randomIssue(tag.getName());
 
     when(jiraDao.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
     when(templateFormatter.format(any(TimeGroup.class))).thenReturn("Work log body");
     doThrow(new RuntimeException("Test exception")).when(jiraDao).createWorklog(any(Worklog.class));
 
-    final PostResult result = connector.postTime(fakeRequest(), randomDataGenerator.randomTimeGroup());
+    final PostResult result = connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup());
 
     assertThat(result)
         .isEqualTo(PostResult.TRANSIENT_FAILURE)
@@ -213,15 +214,15 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_valid_group_should_succeed() {
-    final Tag tag1 = randomDataGenerator.randomTag("/Jira/");
-    final Tag tag2 = randomDataGenerator.randomTag("/Jira/");
+    final Tag tag1 = fakeEntities.randomTag("/Jira/");
+    final Tag tag2 = fakeEntities.randomTag("/Jira/");
 
-    final TimeRow timeRow1 = randomDataGenerator.randomTimeRow().activityHour(2018110110);
-    final TimeRow timeRow2 = randomDataGenerator.randomTimeRow().activityHour(2018110109);
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
 
-    final User user = randomDataGenerator.randomUser().experienceWeightingPercent(50);
+    final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
-    final TimeGroup timeGroup = randomDataGenerator.randomTimeGroup()
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
         .tags(ImmutableList.of(tag1, tag2))
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
