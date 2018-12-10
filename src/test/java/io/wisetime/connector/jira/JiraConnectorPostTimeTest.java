@@ -213,6 +213,7 @@ class JiraConnectorPostTimeTest {
   void postTime_with_valid_group_should_succeed() {
     final Tag tag1 = fakeEntities.randomTag("/Jira/");
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
+    final Tag tag3 = fakeEntities.randomTag("/Jira/");
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
@@ -220,11 +221,11 @@ class JiraConnectorPostTimeTest {
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
-        .tags(ImmutableList.of(tag1, tag2))
+        .tags(ImmutableList.of(tag1, tag2, tag3))
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
-        .totalDurationSecs(1000);
+        .totalDurationSecs(1500);
 
     when(jiraDao.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
@@ -234,7 +235,9 @@ class JiraConnectorPostTimeTest {
 
     when(jiraDao.findIssueByTagName(anyString()))
         .thenReturn(Optional.of(issue1))
-        .thenReturn(Optional.of(issue2));
+        .thenReturn(Optional.of(issue2))
+        // Last tag has no matching Jira issue
+        .thenReturn(Optional.empty());
 
     when(templateFormatter.format(any(TimeGroup.class)))
         .thenReturn("Work log body");
@@ -286,7 +289,8 @@ class JiraConnectorPostTimeTest {
     List<Long> updatedIssueTimes = timeSpentUpdateIssueCaptor.getAllValues();
     assertThat(updatedIssueTimes)
         .containsExactly(issue1.getTimeSpent() + 250, issue2.getTimeSpent() + 250)
-        .as("Time spent of both matching issues should be updated with new duration");
+        .as("Time spent of both matching issues should be updated with new duration. The duration should be " +
+            "split among the three tags even if one of them was not found.");
   }
 
   private void verifyJiraNotUpdated() {

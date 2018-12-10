@@ -162,8 +162,7 @@ public class JiraConnector implements WiseTimeConnector {
 
               .map(Tag::getName)
               .map(jiraDao::findIssueByTagName)
-
-              // Fail the transaction if one of the tags doesn't have a matching issue
+              .filter(Optional::isPresent)
               .map(Optional::get)
 
               .map(updateIssueTimeSpent)
