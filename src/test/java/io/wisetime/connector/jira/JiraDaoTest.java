@@ -190,6 +190,11 @@ class JiraDaoTest {
     assertThat(jiraDao.findIssuesOrderedById(0, 100))
         .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues);
+
+    assertThat(jiraDao.findIssuesOrderedById(0, 100, projectKey))
+        .as("Should be able retrieve matching issue and project key")
+        .containsExactlyElementsOf(savedIssues);
+
     assertThat(jiraDao.findIssuesOrderedById(25, 5))
         .as("Should be able retrieve matching issue")
         .containsExactlyElementsOf(savedIssues.subList(25, 30));

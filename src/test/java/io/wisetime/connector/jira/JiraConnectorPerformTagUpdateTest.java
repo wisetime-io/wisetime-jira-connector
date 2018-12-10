@@ -29,6 +29,7 @@ import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKe
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -58,6 +59,7 @@ class JiraConnectorPerformTagUpdateTest {
     System.clearProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey());
     System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey(), Integer.valueOf(100).toString());
     System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey(), "/test/path/");
+    System.setProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS.getConfigKey(), "WT,IPFLOW");
 
     RuntimeConfig.rebuild();
 
@@ -69,6 +71,10 @@ class JiraConnectorPerformTagUpdateTest {
         .as("TAG_UPSERT_BATCH_SIZE should be set to 100")
         .contains(100);
 
+    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS))
+        .as("ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS should contain WT,IPFLOW")
+        .contains("WT,IPFLOW");
+
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDao.class).toProvider(() -> jiraDao);
     }).getInstance(JiraConnector.class);
@@ -79,10 +85,12 @@ class JiraConnectorPerformTagUpdateTest {
     connector.init(new ConnectorModule(apiClient, mock(TemplateFormatter.class), connectorStore));
   }
 
+  @SuppressWarnings("Duplicates")
   @AfterAll
   static void tearDown() {
     System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey());
     System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey());
+    System.clearProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS.getConfigKey());
     RuntimeConfig.rebuild();
 
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
@@ -90,7 +98,8 @@ class JiraConnectorPerformTagUpdateTest {
         .isNotPresent();
     assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.TAG_UPSERT_PATH))
         .isNotPresent();
-
+    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS))
+        .isNotPresent();
   }
 
 
@@ -113,7 +122,7 @@ class JiraConnectorPerformTagUpdateTest {
 
   @Test
   void performTagUpdate_upsert_error() throws IOException {
-    when(jiraDao.findIssuesOrderedById(anyLong(), anyInt()))
+    when(jiraDao.findIssuesOrderedById(anyLong(), anyInt(), any()))
         .thenReturn(ImmutableList.of(randomDataGenerator.randomIssue(), randomDataGenerator.randomIssue()));
 
     doThrow(new IOException())
@@ -132,7 +141,7 @@ class JiraConnectorPerformTagUpdateTest {
     when(connectorStore.getLong(anyString())).thenReturn(Optional.empty());
 
     ArgumentCaptor<Integer> batchSize = ArgumentCaptor.forClass(Integer.class);
-    when(jiraDao.findIssuesOrderedById(anyLong(), batchSize.capture()))
+    when(jiraDao.findIssuesOrderedById(anyLong(), batchSize.capture(), any()))
         .thenReturn(ImmutableList.of(issue1, issue2))
         .thenReturn(ImmutableList.of());
 
@@ -169,5 +178,12 @@ class JiraConnectorPerformTagUpdateTest {
     assertThat(storeValue.getValue())
         .isEqualTo(issue2.getId())
         .as("Last synced ID saved is from the last item in the issues list");
+  }
+
+  @Test
+  void onlyUpsertTagsForProjectKeys_retrieveProjectKey() {
+    String[] projectKeys = connector.onlyUpsertTagsForProjectKeys();
+    assertThat(projectKeys).isNotEmpty();
+    assertThat(projectKeys).contains("WT", "IPFLOW");
   }
 }

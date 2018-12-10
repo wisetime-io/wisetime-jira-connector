@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.codejargon.fluentjdbc.api.FluentJdbc;
@@ -26,6 +27,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -134,10 +136,19 @@ class JiraDao {
         );
   }
 
-  List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults) {
-    return query().select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
+  List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults, String... projectKeys) {
+    String query = "SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
         + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
-        + "WHERE jiraissue.id > ? ORDER BY ID ASC LIMIT ?;")
+        + "WHERE jiraissue.id > ? ";
+
+    if (ArrayUtils.isNotEmpty(projectKeys)) {
+      query += String.format("AND project.pkey in (%s) ", Arrays.stream(projectKeys)
+          .map(key -> "'" + key.replace("'", "''") + "'")
+          .collect(Collectors.joining(",")));
+    }
+    query += "ORDER BY ID ASC LIMIT ?;";
+
+    return query().select(query)
         .params(
             startIdExclusive,
             maxResults
