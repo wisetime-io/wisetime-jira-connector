@@ -62,10 +62,9 @@ class JiraConnectorPostTimeTest {
 
   @BeforeAll
   static void setUp() {
-    System.clearProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey(), Integer.valueOf(100).toString());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey(), "/test/path/");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
+    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
     assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
         .as("CALLER_KEY empty value expected")
@@ -87,9 +86,9 @@ class JiraConnectorPostTimeTest {
 
   @AfterAll
   static void tearDown() {
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey());
-    RuntimeConfig.rebuild();
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH);
+
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE empty result expected")
         .isNotPresent();
@@ -122,8 +121,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_invalid_caller_key_should_fail() {
-    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(ConnectorConfigKey.CALLER_KEY, "caller-key");
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
@@ -139,8 +137,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_with_valid_caller_key_should_succeed() {
-    System.setProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey(), "caller-key");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(ConnectorConfigKey.CALLER_KEY, "caller-key");
 
     final TimeGroup groupWithNoTags = fakeEntities
         .randomTimeGroup()
@@ -216,6 +213,7 @@ class JiraConnectorPostTimeTest {
   void postTime_with_valid_group_should_succeed() {
     final Tag tag1 = fakeEntities.randomTag("/Jira/");
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
+    final Tag tag3 = fakeEntities.randomTag("/Jira/");
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
@@ -223,11 +221,11 @@ class JiraConnectorPostTimeTest {
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
-        .tags(ImmutableList.of(tag1, tag2))
+        .tags(ImmutableList.of(tag1, tag2, tag3))
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
-        .totalDurationSecs(1000);
+        .totalDurationSecs(1500);
 
     when(jiraDao.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
@@ -237,7 +235,9 @@ class JiraConnectorPostTimeTest {
 
     when(jiraDao.findIssueByTagName(anyString()))
         .thenReturn(Optional.of(issue1))
-        .thenReturn(Optional.of(issue2));
+        .thenReturn(Optional.of(issue2))
+        // Last tag has no matching Jira issue
+        .thenReturn(Optional.empty());
 
     when(templateFormatter.format(any(TimeGroup.class)))
         .thenReturn("Work log body");
@@ -289,7 +289,8 @@ class JiraConnectorPostTimeTest {
     List<Long> updatedIssueTimes = timeSpentUpdateIssueCaptor.getAllValues();
     assertThat(updatedIssueTimes)
         .containsExactly(issue1.getTimeSpent() + 250, issue2.getTimeSpent() + 250)
-        .as("Time spent of both matching issues should be updated with new duration");
+        .as("Time spent of both matching issues should be updated with new duration. The duration should be " +
+            "split among the three tags even if one of them was not found.");
   }
 
   private void verifyJiraNotUpdated() {

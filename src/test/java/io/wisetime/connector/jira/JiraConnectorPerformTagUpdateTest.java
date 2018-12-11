@@ -56,12 +56,11 @@ class JiraConnectorPerformTagUpdateTest {
 
   @BeforeAll
   static void setUp() {
-    System.clearProperty(ConnectorConfigKey.CALLER_KEY.getConfigKey());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey(), Integer.valueOf(100).toString());
-    System.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey(), "/test/path/");
-    System.setProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS.getConfigKey(), "WT,IPFLOW");
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS, "WT,IPFLOW");
+    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
-    RuntimeConfig.rebuild();
 
     assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
         .as("CALLER_KEY empty value expected")
@@ -88,10 +87,9 @@ class JiraConnectorPerformTagUpdateTest {
   @SuppressWarnings("Duplicates")
   @AfterAll
   static void tearDown() {
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS.getConfigKey());
-    RuntimeConfig.rebuild();
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS);
 
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE empty result expected")
@@ -101,7 +99,6 @@ class JiraConnectorPerformTagUpdateTest {
     assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS))
         .isNotPresent();
   }
-
 
   @BeforeEach
   void setUpTest() {

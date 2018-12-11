@@ -58,10 +58,9 @@ class JiraDaoTest {
 
   @BeforeAll
   static void setup() {
-    System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey(), TEST_JDBC_URL);
-    System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_USER.getConfigKey(), "test");
-    System.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey(), "test");
-    RuntimeConfig.rebuild();
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL, TEST_JDBC_URL);
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_JDBC_USER, "test");
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD, "test");
 
     final Injector injector = Guice.createInjector(
         new JiraDbModule(), new FlywayJiraTestDbModule()
@@ -70,25 +69,19 @@ class JiraDaoTest {
     jiraDao = injector.getInstance(JiraDao.class);
     fluentJdbc = new FluentJdbcBuilder().connectionProvider(injector.getInstance(DataSource.class)).build();
 
-
     // Apply Jira DB schema to test db
     injector.getInstance(Flyway.class).migrate();
   }
 
-
   @BeforeAll
   static void tearDown() {
-    System.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_URL.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_USER.getConfigKey());
-    System.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD.getConfigKey());
-    RuntimeConfig.rebuild();
-
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_URL);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_USER);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD);
   }
-
 
   @BeforeEach
   void setupTests() {
-
     Preconditions.checkState(
         // We don't want to accidentally truncate production tables
         RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_JDBC_URL).orElse("").equals(TEST_JDBC_URL)
@@ -364,5 +357,4 @@ class JiraDaoTest {
       }
     }
   }
-
 }

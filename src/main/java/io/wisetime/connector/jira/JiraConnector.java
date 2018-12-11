@@ -111,8 +111,8 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
-    Optional<String> callerKeyOpt = callerKey();
-    if (callerKeyOpt.isPresent() && !callerKeyOpt.get().equals(userPostedTime.getCallerKey())) {
+    Optional<String> callerKey = callerKey();
+    if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Invalid caller key in post time webhook call");
     }
@@ -133,6 +133,14 @@ public class JiraConnector implements WiseTimeConnector {
       return PostResult.PERMANENT_FAILURE
           .withMessage("User does not exist in Jira");
     }
+
+    final Function<Tag, Optional<Issue>> findIssue = tag -> {
+      final Optional<Issue> issue = jiraDao.findIssueByTagName(tag.getName());
+      if (!issue.isPresent()) {
+        log.warn("Can't find Jira issue for tag {}. No time will be posted for this tag.", tag.getName());
+      }
+      return issue;
+    };
 
     final long workedTime = Math.round(tagDuration(userPostedTime));
 
@@ -162,10 +170,8 @@ public class JiraConnector implements WiseTimeConnector {
               .getTags()
               .stream()
 
-              .map(Tag::getName)
-              .map(jiraDao::findIssueByTagName)
-
-              // Fail the transaction if one of the tags doesn't have a matching issue
+              .map(findIssue)
+              .filter(Optional::isPresent)
               .map(Optional::get)
 
               .map(updateIssueTimeSpent)
