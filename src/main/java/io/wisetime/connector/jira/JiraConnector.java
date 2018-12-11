@@ -132,6 +132,14 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("User does not exist in Jira");
     }
 
+    final Function<Tag, Optional<Issue>> findIssue = tag -> {
+      final Optional<Issue> issue = jiraDao.findIssueByTagName(tag.getName());
+      if (!issue.isPresent()) {
+        log.warn("Can't find Jira issue for tag {}. No time will be posted for this tag.", tag.getName());
+      }
+      return issue;
+    };
+
     final long workedTime = Math.round(tagDuration(userPostedTime));
 
     final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
@@ -160,8 +168,7 @@ public class JiraConnector implements WiseTimeConnector {
               .getTags()
               .stream()
 
-              .map(Tag::getName)
-              .map(jiraDao::findIssueByTagName)
+              .map(findIssue)
               .filter(Optional::isPresent)
               .map(Optional::get)
 
