@@ -27,6 +27,7 @@ import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
 import io.wisetime.connector.template.TemplateFormatter;
+import io.wisetime.connector.utils.DurationCalculator;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.UpsertTagRequest;
@@ -36,7 +37,6 @@ import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKe
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
 import static io.wisetime.connector.utils.ActivityTimeCalculator.startTime;
-import static io.wisetime.connector.utils.TagDurationCalculator.tagDuration;
 
 /**
  * WiseTime Connector implementation for Jira.
@@ -108,25 +108,26 @@ public class JiraConnector implements WiseTimeConnector {
    * Updates the relevant issue and creates a Jira Worklog entry for it.
    */
   @Override
-  public PostResult postTime(final Request request, final TimeGroup userPostedTime) {
+  public PostResult postTime(final Request request, final TimeGroup timeGroup) {
+
     Optional<String> callerKey = callerKey();
-    if (callerKey.isPresent() && !callerKey.get().equals(userPostedTime.getCallerKey())) {
+    if (callerKey.isPresent() && !callerKey.get().equals(timeGroup.getCallerKey())) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Invalid caller key in post time webhook call");
     }
 
-    if (userPostedTime.getTags().isEmpty()) {
+    if (timeGroup.getTags().isEmpty()) {
       return PostResult.SUCCESS
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
-    final Optional<LocalDateTime> activityStartTime = startTime(userPostedTime);
+    final Optional<LocalDateTime> activityStartTime = startTime(timeGroup);
     if (!activityStartTime.isPresent()) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("Cannot post time group with no time rows");
     }
 
-    final Optional<String> author = jiraDao.findUsername(userPostedTime.getUser().getExternalId());
+    final Optional<String> author = jiraDao.findUsername(timeGroup.getUser().getExternalId());
     if (!author.isPresent()) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("User does not exist in Jira");
@@ -140,7 +141,10 @@ public class JiraConnector implements WiseTimeConnector {
       return issue;
     };
 
-    final long workedTime = Math.round(tagDuration(userPostedTime));
+    final long workedTime = DurationCalculator
+        .of(timeGroup)
+        .calculate()
+        .getPerTagDuration();
 
     final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
       final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
@@ -153,7 +157,7 @@ public class JiraConnector implements WiseTimeConnector {
           .builder()
           .issueId(forIssue.getId())
           .author(author.get())
-          .body(templateFormatter.format(userPostedTime))
+          .body(templateFormatter.format(timeGroup))
           .created(activityStartTime.get())
           .timeWorked(workedTime)
           .build();
@@ -164,7 +168,7 @@ public class JiraConnector implements WiseTimeConnector {
 
     try {
       jiraDao.asTransaction(() ->
-          userPostedTime
+          timeGroup
               .getTags()
               .stream()
 
