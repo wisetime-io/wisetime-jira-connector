@@ -27,7 +27,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -136,23 +135,20 @@ class JiraDao {
         );
   }
 
-  List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults, String... projectKeys) {
+  List<Issue> findIssuesOrderedById(final long startIdExclusive, final int maxResults, final String... projectKeys) {
     String query = "SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
         + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
-        + "WHERE jiraissue.id > ? ";
+        + "WHERE jiraissue.id > :startIdExclusive ";
 
     if (ArrayUtils.isNotEmpty(projectKeys)) {
-      query += String.format("AND project.pkey in (%s) ", Arrays.stream(projectKeys)
-          .map(key -> "'" + key.replace("'", "''") + "'")
-          .collect(Collectors.joining(",")));
+      query += "AND project.pkey in (:projectKeys) ";
     }
-    query += "ORDER BY ID ASC LIMIT ?;";
+    query += "ORDER BY ID ASC LIMIT :maxResults";
 
     return query().select(query)
-        .params(
-            startIdExclusive,
-            maxResults
-        )
+        .namedParam("startIdExclusive", startIdExclusive)
+        .namedParam("projectKeys", projectKeys)
+        .namedParam("maxResults", maxResults)
         .listResult(this::buildIssueFromResultSet);
   }
 
