@@ -58,7 +58,7 @@ class JiraConnectorPerformTagUpdateTest {
   static void setUp() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
-    RuntimeConfig.setProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS, "WT,IPFLOW");
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS, "WT, IPFLOW");
     RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
 
@@ -71,8 +71,8 @@ class JiraConnectorPerformTagUpdateTest {
         .contains(100);
 
     assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS))
-        .as("ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS should contain WT,IPFLOW")
-        .contains("WT,IPFLOW");
+        .as("ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS should contain WT, IPFLOW")
+        .contains("WT, IPFLOW");
 
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDao.class).toProvider(() -> jiraDao);

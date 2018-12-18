@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -48,7 +48,6 @@ public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
-  private static final DateTimeFormatter ACTIVITY_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHH");
 
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
@@ -216,7 +215,12 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @VisibleForTesting
   String[] onlyUpsertTagsForProjectKeys() {
-    return RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS)
-        .map((keys) -> keys.split("\\s*,\\s*")).orElse(null);
+    return RuntimeConfig
+        .getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS)
+        .map(keys ->
+            Arrays.stream(keys.split("\\s*,\\s*"))
+                .map(String::trim)
+                .toArray(String[]::new)
+        ).orElse(null);
   }
 }
