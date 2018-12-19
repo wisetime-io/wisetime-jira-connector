@@ -43,8 +43,8 @@ public class ConnectorLauncher {
   public enum JiraConnectorConfigKey implements RuntimeConfigKey {
 
     JIRA_JDBC_URL("JIRA_JDBC_URL"),
-    JIRA_JDBC_USER("JIRA_JDBC_USER"),
-    JIRA_JDBC_PASSWORD("JIRA_JDBC_PASSWORD"),
+    JIRA_DB_USER("JIRA_DB_USER"),
+    JIRA_DB_PASSWORD("JIRA_DB_PASSWORD"),
     TAG_UPSERT_PATH("TAG_UPSERT_PATH"),
     TAG_UPSERT_BATCH_SIZE("TAG_UPSERT_BATCH_SIZE"),
     PROJECT_KEYS_FILTER("PROJECT_KEYS_FILTER");
@@ -77,12 +77,12 @@ public class ConnectorLauncher {
       );
 
       hikariConfig.setUsername(
-          RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_JDBC_USER)
-              .orElseThrow(() -> new RuntimeException("Missing required JIRA_JDBC_USER configuration"))
+          RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_DB_USER)
+              .orElseThrow(() -> new RuntimeException("Missing required JIRA_DB_USER configuration"))
       );
 
       hikariConfig.setPassword(
-          RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD)
+          RuntimeConfig.getString(JiraConnectorConfigKey.JIRA_DB_PASSWORD)
               .orElseThrow(() -> new RuntimeException("Missing required JIRA_JDBC_PASSWORD configuration"))
       );
       hikariConfig.setConnectionTimeout(TimeUnit.MINUTES.toMillis(1));

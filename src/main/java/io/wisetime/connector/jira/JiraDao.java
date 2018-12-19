@@ -63,7 +63,7 @@ class JiraDao {
   }
 
   boolean hasExpectedSchema() {
-    final Query query = query();
+    log.info("Checking if Jira DB has correct schema...");
 
     final Map<String, Set<String>> requiredTablesAndColumnsMap = Maps.newHashMap();
     requiredTablesAndColumnsMap.put(
@@ -95,18 +95,17 @@ class JiraDao {
         ImmutableSet.of("id", "propertyvalue")
     );
 
-    final Map<String, List<String>> actualTablesAndColumnsMap = query.databaseInspection()
+    final Map<String, List<String>> actualTablesAndColumnsMap = query().databaseInspection()
         .selectFromMetaData(meta -> meta.getColumns(null, null, null, null))
         .listResult(rs -> ImmutablePair.of(rs.getString("TABLE_NAME"), rs.getString("COLUMN_NAME")))
         .stream()
         .filter(pair -> requiredTablesAndColumnsMap.containsKey(pair.getKey().toLowerCase()))
-        .collect(groupingBy(ImmutablePair::getKey, mapping(ImmutablePair::getValue, toList())));
+        // transform to lower case to ensure we are comparing the same case
+        .collect(groupingBy(pair -> pair.getKey().toLowerCase(), mapping(pair -> pair.getValue().toLowerCase(), toList())));
 
     return requiredTablesAndColumnsMap.entrySet().stream()
-        // Values from MetaDataResultSet are in uppercase
-        .allMatch(entry -> actualTablesAndColumnsMap.containsKey(entry.getKey().toUpperCase()) &&
-            actualTablesAndColumnsMap.get(entry.getKey().toUpperCase()).containsAll(
-                entry.getValue().stream().map(String::toUpperCase).collect(Collectors.toSet()))
+        .allMatch(entry -> actualTablesAndColumnsMap.containsKey(entry.getKey()) &&
+            actualTablesAndColumnsMap.get(entry.getKey()).containsAll(entry.getValue())
         );
   }
 
