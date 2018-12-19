@@ -7,7 +7,6 @@ package io.wisetime.connector.jira;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,17 +61,7 @@ class JiraConnectorPostTimeTest {
 
   @BeforeAll
   static void setUp() {
-    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
-    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
     RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
-
-    assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
-        .as("CALLER_KEY empty value expected")
-        .isNotPresent();
-
-    assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
-        .as("TAG_UPSERT_BATCH_SIZE should be set to 100")
-        .contains(100);
 
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDao.class).toProvider(() -> jiraDao);
@@ -84,20 +73,10 @@ class JiraConnectorPostTimeTest {
     connector.init(new ConnectorModule(apiClient, templateFormatter, mock(ConnectorStore.class)));
   }
 
-  @AfterAll
-  static void tearDown() {
-    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE);
-    RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH);
-
-    assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
-        .as("TAG_UPSERT_BATCH_SIZE empty result expected")
-        .isNotPresent();
-    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.TAG_UPSERT_PATH))
-        .isNotPresent();
-  }
-
   @BeforeEach
   void setUpTest() {
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
+
     reset(templateFormatter);
     reset(jiraDao);
 
@@ -291,6 +270,29 @@ class JiraConnectorPostTimeTest {
         .containsExactly(issue1.getTimeSpent() + 250, issue2.getTimeSpent() + 250)
         .as("Time spent of both matching issues should be updated with new duration. The duration should be " +
             "split among the three tags even if one of them was not found.");
+  }
+
+  @Test
+  void postTime_should_only_handle_configured_project_keys() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT");
+
+    final Tag tagWt = fakeEntities.randomTag("/Jira/").name("WT-2");
+    final Tag tagOther = fakeEntities.randomTag("/Jira/").name("OTHER-1");
+    final TimeGroup timeGroup = fakeEntities
+        .randomTimeGroup()
+        .tags(ImmutableList.of(tagWt, tagOther));
+
+    when(jiraDao.findUsername(anyString()))
+        .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+
+    connector.postTime(fakeRequest(), timeGroup);
+
+    ArgumentCaptor<String> tagNameCaptor = ArgumentCaptor.forClass(String.class);
+    verify(jiraDao, times(1)).findIssueByTagName(tagNameCaptor.capture());
+
+    assertThat(tagNameCaptor.getValue())
+        .isEqualTo("WT-2")
+        .as("Only configured project keys should be handled when posting time");
   }
 
   private void verifyJiraNotUpdated() {

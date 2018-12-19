@@ -166,28 +166,45 @@ class JiraDaoTest {
 
   @Test
   void findIssuesOrderedById() {
-    final Long projectId = 1L;
-    final String projectKey = "WT";
-    final List<Issue> issues = RANDOM_DATA_GENERATOR.randomIssues(100);
+    saveProject(1L, "WT");
+    saveProject(2L, "OTHER");
 
-    saveProject(projectId, projectKey);
-    List<Issue> savedIssues = IntStream.range(0, issues.size())
-        .mapToObj(idx -> Issue.builder()
-            .from(issues.get(idx))
-            .id(idx + 1)  // ID should start at 1
-            .projectKey(projectKey)
-            .build())
-        .peek(issue -> saveJiraIssue(projectId, issue))
+    final List<Issue> wtIssues = RANDOM_DATA_GENERATOR.randomIssues(10);
+    List<Issue> savedWtIssues = IntStream.range(0, 10)
+        .mapToObj(idx ->
+            Issue.builder()
+                .from(wtIssues.get(idx))
+                .id(idx + 1)  // IDs start from 1
+                .projectKey("WT")
+                .build()
+        )
+        .peek(issue -> saveJiraIssue(1L, issue))
         .collect(Collectors.toList());
 
+    final Issue otherIssue = Issue
+        .builder()
+        .from(RANDOM_DATA_GENERATOR.randomIssue("OTHER-1"))
+        .id(11)
+        .build();
+    saveJiraIssue(2L, otherIssue);
+
+    final List<Issue> allIssues = ImmutableList
+        .<Issue>builder()
+        .addAll(savedWtIssues)
+        .add(otherIssue)
+        .build();
+
     assertThat(jiraDao.findIssuesOrderedById(0, 100))
-        .as("Should be able retrieve matching issue")
-        .containsExactlyElementsOf(savedIssues);
-    assertThat(jiraDao.findIssuesOrderedById(25, 5))
-        .as("Should be able retrieve matching issue")
-        .containsExactlyElementsOf(savedIssues.subList(25, 30));
-    assertThat(jiraDao.findIssuesOrderedById(101, 5))
-        .as("No Jira issue should be returned when no issue matches the start ID")
+        .as("Should be able retrieve all matching issues")
+        .containsExactlyElementsOf(allIssues);
+    assertThat(jiraDao.findIssuesOrderedById(0, 100, "WT"))
+        .as("Should be able retrieve matching issue filtered by project key")
+        .containsExactlyElementsOf(savedWtIssues);
+    assertThat(jiraDao.findIssuesOrderedById(5, 5))
+        .as("Should be able retrieve matching issues based on start ID")
+        .containsExactlyElementsOf(savedWtIssues.subList(5, 10));
+    assertThat(jiraDao.findIssuesOrderedById(13, 5))
+        .as("Start ID is beyond range")
         .isEmpty();
   }
 

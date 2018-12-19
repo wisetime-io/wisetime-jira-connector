@@ -4,17 +4,20 @@
 
 package io.wisetime.connector.jira;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -47,7 +50,6 @@ public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
-  private static final DateTimeFormatter ACTIVITY_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHH");
 
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
@@ -77,7 +79,8 @@ public class JiraConnector implements WiseTimeConnector {
 
       final List<Issue> issues = jiraDao.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
-          tagUpsertBatchSize()
+          tagUpsertBatchSize(),
+          getProjectKeysFilter()
       );
 
       if (issues.isEmpty()) {
@@ -133,6 +136,16 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("User does not exist in Jira");
     }
 
+    final Predicate<Tag> relevantProjectKey = tag -> {
+      if (getProjectKeysFilter().length == 0) {
+        return true;
+      }
+      return JiraDao.IssueKey
+          .fromTagName(tag.getName())
+          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey.getProjectKey()))
+          .isPresent();
+    };
+
     final Function<Tag, Optional<Issue>> findIssue = tag -> {
       final Optional<Issue> issue = jiraDao.findIssueByTagName(tag.getName());
       if (!issue.isPresent()) {
@@ -171,6 +184,7 @@ public class JiraConnector implements WiseTimeConnector {
           timeGroup
               .getTags()
               .stream()
+              .filter(relevantProjectKey)
 
               .map(findIssue)
               .filter(Optional::isPresent)
@@ -211,5 +225,22 @@ public class JiraConnector implements WiseTimeConnector {
 
   private Optional<String> callerKey() {
     return RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
+  }
+
+  /**
+   * If configured, the connector will only handle the project keys returned by this method.
+   * If project keys filter is configured, the connector will handle all Jira projects.
+   *
+   * @return array of projects keys
+   */
+  @VisibleForTesting
+  String[] getProjectKeysFilter() {
+    return RuntimeConfig
+        .getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER)
+        .map(keys ->
+            Arrays.stream(keys.split("\\s*,\\s*"))
+                .map(String::trim)
+                .toArray(String[]::new)
+        ).orElse(ArrayUtils.toArray());
   }
 }

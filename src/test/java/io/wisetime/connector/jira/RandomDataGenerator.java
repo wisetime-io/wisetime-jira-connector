@@ -35,8 +35,8 @@ class RandomDataGenerator {
     return randomIssue(tag.getName());
   }
 
-  Issue randomIssue(final String key) {
-    final String[] tagParts = key.split("-");
+  Issue randomIssue(final String issueKey) {
+    final String[] tagParts = issueKey.split("-");
     Preconditions.checkArgument(tagParts.length == 2);
     return Issue
         .builder()

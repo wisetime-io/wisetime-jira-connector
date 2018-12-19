@@ -22,16 +22,19 @@ Configuration is done through environment variables. The following configuration
 The following configuration options are optional.
 
 | Environment Variable  | Description                                                                                                                             |
-| --------------------  | --------------------------------------------------------------------------------------------------------------------------------------- |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | CALLER_KEY            | The caller key that WiseTime should provide with post time webhook calls. The connector does not authenticate Webhook calls if not set. |
 | TAG_UPSERT_PATH       | The WiseTime tag folder path to use for Jira tags. Defaults to `/Jira/` (trailing slash is required). Use `/` for root folder.          |
 | TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                     |
+| PROJECT_KEYS_FILTER   | If set, the connector will only handle Jira issues from the configured Jira project keys.                                               | 
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 
 ## Running the WiseTime Jira Connector
 
 The easiest way to run the Jira Connector is using Docker. For example:
+
+TODO: Add volume mount for SQLite store
 
 ```text
 docker run -d \
