@@ -60,7 +60,7 @@ class JiraDaoTest {
   static void setup() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_JDBC_URL, TEST_JDBC_URL);
     RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_DB_USER, "test");
-    RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD, "test");
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.JIRA_DB_PASSWORD, "test");
 
     final Injector injector = Guice.createInjector(
         new JiraDbModule(), new FlywayJiraTestDbModule()
@@ -77,7 +77,7 @@ class JiraDaoTest {
   static void tearDown() {
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_URL);
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_DB_USER);
-    RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_JDBC_PASSWORD);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.JIRA_DB_PASSWORD);
   }
 
   @BeforeEach
