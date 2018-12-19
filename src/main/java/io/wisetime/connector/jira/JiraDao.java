@@ -278,7 +278,6 @@ class JiraDao {
     }
   }
 
-
   /**
    * Jira issue reference
    */
