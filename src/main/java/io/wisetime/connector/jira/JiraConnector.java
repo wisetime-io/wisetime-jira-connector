@@ -7,6 +7,7 @@ package io.wisetime.connector.jira;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +79,7 @@ public class JiraConnector implements WiseTimeConnector {
       final List<Issue> issues = jiraDao.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
           tagUpsertBatchSize(),
-          onlyUpsertTagsForProjectKeys()
+          getProjectKeys()
       );
 
       if (issues.isEmpty()) {
@@ -214,13 +215,13 @@ public class JiraConnector implements WiseTimeConnector {
    * @return an array of projects keys used in upserting tags
    */
   @VisibleForTesting
-  String[] onlyUpsertTagsForProjectKeys() {
+  String[] getProjectKeys() {
     return RuntimeConfig
-        .getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS)
+        .getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER)
         .map(keys ->
             Arrays.stream(keys.split("\\s*,\\s*"))
                 .map(String::trim)
                 .toArray(String[]::new)
-        ).orElse(null);
+        ).orElse(ArrayUtils.toArray());
   }
 }

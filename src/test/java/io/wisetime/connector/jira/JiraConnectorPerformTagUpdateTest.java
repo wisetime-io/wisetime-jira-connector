@@ -58,9 +58,8 @@ class JiraConnectorPerformTagUpdateTest {
   static void setUp() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
-    RuntimeConfig.setProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS, "WT, IPFLOW");
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT, IPFLOW");
     RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
-
 
     assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
         .as("CALLER_KEY empty value expected")
@@ -70,7 +69,7 @@ class JiraConnectorPerformTagUpdateTest {
         .as("TAG_UPSERT_BATCH_SIZE should be set to 100")
         .contains(100);
 
-    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS))
+    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER))
         .as("ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS should contain WT, IPFLOW")
         .contains("WT, IPFLOW");
 
@@ -89,14 +88,14 @@ class JiraConnectorPerformTagUpdateTest {
   static void tearDown() {
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE);
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH);
-    RuntimeConfig.clearProperty(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS);
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
 
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE empty result expected")
         .isNotPresent();
     assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.TAG_UPSERT_PATH))
         .isNotPresent();
-    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.ONLY_UPSERT_TAGS_FOR_PROJECT_KEYS))
+    assertThat(RuntimeConfig.getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER))
         .isNotPresent();
   }
 
@@ -178,9 +177,16 @@ class JiraConnectorPerformTagUpdateTest {
   }
 
   @Test
-  void onlyUpsertTagsForProjectKeys_retrieveProjectKey() {
-    String[] projectKeys = connector.onlyUpsertTagsForProjectKeys();
+  void getProjectKeys_some_configured() {
+    String[] projectKeys = connector.getProjectKeys();
     assertThat(projectKeys).isNotEmpty();
     assertThat(projectKeys).contains("WT", "IPFLOW");
+  }
+
+  @Test
+  void getProjectKeys_none_configured() {
+    RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
+    String[] projectKeys = connector.getProjectKeys();
+    assertThat(projectKeys).isEmpty();
   }
 }
