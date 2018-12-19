@@ -6,8 +6,6 @@ package io.wisetime.connector.jira;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
@@ -143,7 +141,7 @@ public class JiraConnector implements WiseTimeConnector {
       }
       return JiraDao.IssueKey
           .fromTagName(tag.getName())
-          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey))
+          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey.getProjectKey()))
           .isPresent();
     };
 
@@ -233,15 +231,12 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @VisibleForTesting
   String[] getProjectKeysFilter() {
-    final Supplier<String[]> keysSupplier = () ->
-        RuntimeConfig
-            .getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER)
-            .map(keys ->
-                Arrays.stream(keys.split("\\s*,\\s*"))
-                    .map(String::trim)
-                    .toArray(String[]::new)
-            ).orElse(ArrayUtils.toArray());
-
-    return Suppliers.memoize(keysSupplier).get();
+    return RuntimeConfig
+        .getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER)
+        .map(keys ->
+            Arrays.stream(keys.split("\\s*,\\s*"))
+                .map(String::trim)
+                .toArray(String[]::new)
+        ).orElse(ArrayUtils.toArray());
   }
 }
