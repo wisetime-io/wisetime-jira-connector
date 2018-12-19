@@ -11,7 +11,6 @@ import com.google.inject.Inject;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.codejargon.fluentjdbc.api.FluentJdbc;
 import org.codejargon.fluentjdbc.api.FluentJdbcBuilder;
 import org.codejargon.fluentjdbc.api.FluentJdbcException;
@@ -122,14 +121,15 @@ class JiraDao {
   }
 
   Optional<Issue> findIssueByTagName(final String tagName) {
-    return getJiraProjectIssuePair(tagName)
-        .flatMap(projectIssuePair ->
+    return IssueKey
+        .fromTagName(tagName)
+        .flatMap(ik ->
             query().select("SELECT jiraissue.id, project.pkey, jiraissue.issuenum, jiraissue.summary, jiraissue.timespent "
                 + "FROM project INNER JOIN jiraissue ON project.id = jiraissue.project "
                 + "WHERE project.pkey = ? AND jiraissue.issuenum = ?")
                 .params(
-                    projectIssuePair.getLeft(),
-                    projectIssuePair.getRight()
+                    ik.getProjectKey(),
+                    ik.getIssueNumber()
                 )
                 .firstResult(this::buildIssueFromResultSet)
         );
@@ -238,19 +238,6 @@ class JiraDao {
         .build();
   }
 
-  private Optional<Pair<String, Integer>> getJiraProjectIssuePair(final String tagName) {
-    try {
-      final String[] parts = tagName.split("-");
-      if (parts.length == 2) {
-        return Optional.of(Pair.of(parts[0], Integer.parseInt(parts[1])));
-      }
-      return Optional.empty();
-    } catch (NumberFormatException ex) {
-      log.warn("Unable to extract Jira issue number from {}.", tagName);
-      return Optional.empty();
-    }
-  }
-
   private Query query() {
     return fluentJdbc.query();
   }
@@ -288,6 +275,36 @@ class JiraDao {
 
     static ImmutableIssue.Builder builder() {
       return ImmutableIssue.builder();
+    }
+  }
+
+
+  /**
+   * Jira issue reference
+   */
+  @Value.Immutable
+  public interface IssueKey {
+
+    String getProjectKey();
+
+    Integer getIssueNumber();
+
+    static Optional<IssueKey> fromTagName(final String tagName) {
+      try {
+        final String[] parts = tagName.split("-");
+        if (parts.length == 2) {
+          return Optional.of(
+              ImmutableIssueKey
+                  .builder()
+                  .projectKey(parts[0])
+                  .issueNumber(Integer.parseInt(parts[1]))
+                  .build()
+          );
+        }
+        return Optional.empty();
+      } catch (NumberFormatException ex) {
+        return Optional.empty();
+      }
     }
   }
 

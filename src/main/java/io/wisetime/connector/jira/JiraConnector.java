@@ -6,6 +6,8 @@ package io.wisetime.connector.jira;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
@@ -17,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -79,7 +82,7 @@ public class JiraConnector implements WiseTimeConnector {
       final List<Issue> issues = jiraDao.findIssuesOrderedById(
           lastPreviouslySyncedIssueId.orElse(0L),
           tagUpsertBatchSize(),
-          getProjectKeys()
+          getProjectKeysFilter()
       );
 
       if (issues.isEmpty()) {
@@ -134,6 +137,16 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("User does not exist in Jira");
     }
 
+    final Predicate<Tag> relevantProjectKey = tag -> {
+      if (getProjectKeysFilter().length == 0) {
+        return true;
+      }
+      return JiraDao.IssueKey
+          .fromTagName(tag.getName())
+          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey))
+          .isPresent();
+    };
+
     final Function<Tag, Optional<Issue>> findIssue = tag -> {
       final Optional<Issue> issue = jiraDao.findIssueByTagName(tag.getName());
       if (!issue.isPresent()) {
@@ -169,6 +182,7 @@ public class JiraConnector implements WiseTimeConnector {
           userPostedTime
               .getTags()
               .stream()
+              .filter(relevantProjectKey)
 
               .map(findIssue)
               .filter(Optional::isPresent)
@@ -212,16 +226,22 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * @return an array of projects keys used in upserting tags
+   * If configured, the connector will only handle the project keys returned by this method.
+   * If project keys filter is configured, the connector will handle all Jira projects.
+   *
+   * @return array of projects keys
    */
   @VisibleForTesting
-  String[] getProjectKeys() {
-    return RuntimeConfig
-        .getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER)
-        .map(keys ->
-            Arrays.stream(keys.split("\\s*,\\s*"))
-                .map(String::trim)
-                .toArray(String[]::new)
-        ).orElse(ArrayUtils.toArray());
+  String[] getProjectKeysFilter() {
+    final Supplier<String[]> keysSupplier = () ->
+        RuntimeConfig
+            .getString(JiraConnectorConfigKey.PROJECT_KEYS_FILTER)
+            .map(keys ->
+                Arrays.stream(keys.split("\\s*,\\s*"))
+                    .map(String::trim)
+                    .toArray(String[]::new)
+            ).orElse(ArrayUtils.toArray());
+
+    return Suppliers.memoize(keysSupplier).get();
   }
 }

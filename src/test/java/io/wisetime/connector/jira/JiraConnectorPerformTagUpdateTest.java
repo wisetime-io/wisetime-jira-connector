@@ -178,7 +178,7 @@ class JiraConnectorPerformTagUpdateTest {
 
   @Test
   void getProjectKeys_some_configured() {
-    String[] projectKeys = connector.getProjectKeys();
+    String[] projectKeys = connector.getProjectKeysFilter();
     assertThat(projectKeys).isNotEmpty();
     assertThat(projectKeys).contains("WT", "IPFLOW");
   }
@@ -186,7 +186,7 @@ class JiraConnectorPerformTagUpdateTest {
   @Test
   void getProjectKeys_none_configured() {
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
-    String[] projectKeys = connector.getProjectKeys();
+    String[] projectKeys = connector.getProjectKeysFilter();
     assertThat(projectKeys).isEmpty();
   }
 }
