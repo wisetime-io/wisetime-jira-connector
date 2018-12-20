@@ -38,7 +38,7 @@ TODO: Add volume mount for SQLite store
 
 ```text
 docker run -d \
-    -p <your_desired_host_port>:8080 \
+    -p 8080:8080 \
     --restart=unless-stopped \
     -e API_KEY=yourwisetimeapikey \
     -e JIRA_JDBC_URL="jdbc:mysql://host:port/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false" \
