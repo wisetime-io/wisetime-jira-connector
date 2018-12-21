@@ -28,6 +28,7 @@ The following configuration options are optional.
 | TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                     |
 | PROJECT_KEYS_FILTER   | If set, the connector will only handle Jira issues from the configured Jira project keys.                                               |
 | PERSISTENT_DIR        | If set, the connector will use the directory as the storage location for SQLite to keep track the Jira issues it have synced.           |
+| TZ                    | Docker standard variable. It is recommended to set it with the OS time zone where Jira server is running.                               |
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 
