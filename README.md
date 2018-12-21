@@ -26,7 +26,8 @@ The following configuration options are optional.
 | CALLER_KEY            | The caller key that WiseTime should provide with post time webhook calls. The connector does not authenticate Webhook calls if not set. |
 | TAG_UPSERT_PATH       | The WiseTime tag folder path to use for Jira tags. Defaults to `/Jira/` (trailing slash is required). Use `/` for root folder.          |
 | TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                     |
-| PROJECT_KEYS_FILTER   | If set, the connector will only handle Jira issues from the configured Jira project keys.                                               | 
+| PROJECT_KEYS_FILTER   | If set, the connector will only handle Jira issues from the configured Jira project keys.                                               |
+| PERSISTENT_DIR        | If set, the connector will use the directory as the storage location for SQLite to keep track the Jira issues it have synced.           |
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 
@@ -34,12 +35,12 @@ The connector needs to be able to read from the `project` and `jiraissue` tables
 
 The easiest way to run the Jira Connector is using Docker. For example:
 
-TODO: Add volume mount for SQLite store
-
 ```text
 docker run -d \
     -p 8080:8080 \
     --restart=unless-stopped \
+    -v volume_name:/tmp/wt-sqlite \
+    -e PERSISTENT_DIR=/tmp/wt-sqlite \
     -e API_KEY=yourwisetimeapikey \
     -e JIRA_JDBC_URL="jdbc:mysql://host:port/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false" \
     -e JIRA_DB_USER=dbuser \
