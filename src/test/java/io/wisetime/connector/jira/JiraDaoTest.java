@@ -129,21 +129,28 @@ class JiraDaoTest {
   }
 
   @Test
-  void hasConfiguredTimeZone() {
-    assertThat(jiraDao.hasConfiguredTimeZone())
-        .as("No timezone is set")
-        .isFalse();
+  void canQueryDb() {
+    assertThat(jiraDao.canQueryDb())
+        .as("DB should be accessible")
+        .isTrue();
+  }
+
+  @Test
+  void getJiraDefaultTimeZone() {
+    assertThat(jiraDao.getJiraDefaultTimeZone())
+        .as("If no timezone is set, connector should use system default time zone")
+        .isEqualTo(ZoneId.systemDefault());
 
     saveDefaultTimeZone(1, "Asia/Manila");
-    assertThat(jiraDao.hasConfiguredTimeZone())
+    assertThat(jiraDao.getJiraDefaultTimeZone())
         .as("Timezone is set")
-        .isTrue();
+        .isEqualTo(ZoneId.of("Asia/Manila"));
 
     removedDefaultTimeZone(1);
-    saveDefaultTimeZone(1, "Asia/Perth");
-    assertThat(jiraDao.hasConfiguredTimeZone())
+    saveDefaultTimeZone(1, "Australia/Sydney");
+    assertThat(jiraDao.getJiraDefaultTimeZone())
         .as("Timezone is unrecognized")
-        .isFalse();
+        .isEqualTo(ZoneId.of("Australia/Sydney"));
   }
 
   @Test

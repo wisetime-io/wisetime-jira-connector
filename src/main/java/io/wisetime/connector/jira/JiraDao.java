@@ -108,10 +108,9 @@ class JiraDao {
         );
   }
 
-  boolean hasConfiguredTimeZone() {
+  boolean canQueryDb() {
     try {
-      getJiraDefaultTimeZone();
-      // If above query did not fail, it means we can connect to Jira DB and we can insert worklog with correct timezone
+      query().select("SELECT 1 from jiraissue").firstResult(Mappers.singleInteger());
       return true;
     } catch (Exception ex) {
       return false;
@@ -185,6 +184,22 @@ class JiraDao {
     upsertWorklogSeqId(nextSeqId);
   }
 
+  ZoneId getJiraDefaultTimeZone() {
+    final Optional<Long> propertyId = query()
+        .select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
+        .firstResult(Mappers.singleLong());
+
+    if (propertyId.isPresent()) {
+      return ZoneId.of(
+          query().select("SELECT propertyvalue from propertystring WHERE id = ?")
+              .params(propertyId.get())
+              .singleResult(Mappers.singleString())
+      );
+    }
+
+    return ZoneId.systemDefault();
+  }
+
   private void upsertWorklogSeqId(final long seqId) {
     if (getWorklogSeqId().isPresent()) {
       updateWorklogSeqId(seqId);
@@ -213,17 +228,6 @@ class JiraDao {
     query().update("UPDATE sequence_value_item SET seq_id=? WHERE seq_name='Worklog'")
         .params(newSeqId)
         .run();
-  }
-
-  private ZoneId getJiraDefaultTimeZone() {
-    final Long propertyId = query().select("SELECT id FROM propertyentry WHERE property_key = 'jira.default.timezone'")
-        .singleResult(Mappers.singleLong());
-
-    String timeZone = query().select("SELECT propertyvalue from propertystring WHERE id = ?")
-        .params(propertyId)
-        .singleResult(Mappers.singleString());
-
-    return ZoneId.of(timeZone);
   }
 
   private Issue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {

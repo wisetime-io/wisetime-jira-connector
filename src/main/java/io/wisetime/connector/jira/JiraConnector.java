@@ -207,7 +207,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDao.hasConfiguredTimeZone();
+    return jiraDao.canQueryDb();
   }
 
   private int tagUpsertBatchSize() {
