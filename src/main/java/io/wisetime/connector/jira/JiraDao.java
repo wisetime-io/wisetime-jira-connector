@@ -111,7 +111,6 @@ class JiraDao {
   boolean canQueryDb() {
     try {
       query().select("SELECT 1 from jiraissue").firstResult(Mappers.singleInteger());
-      // If above query did not fail, it means we can connect to Jira DB
       return true;
     } catch (Exception ex) {
       return false;

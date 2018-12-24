@@ -71,7 +71,7 @@ dependencies {
     }
     compile 'com.google.guava:guava:25.1-jre'
 
-    compile 'io.wisetime:wisetime-connector:1.1.1'
+    compile 'io.wisetime:wisetime-connector:1.1.2'
 
     compile 'org.codejargon:fluentjdbc:1.8.3'
     compile 'com.zaxxer:HikariCP:3.2.0'
