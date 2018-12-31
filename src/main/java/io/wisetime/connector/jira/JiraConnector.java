@@ -88,6 +88,9 @@ public class JiraConnector implements WiseTimeConnector {
         return;
       } else {
         try {
+          log.info("Performing tag update: size={}, issues={}",
+              issues.size(), Base64.getEncoder().encodeToString(issues.toString().getBytes()));
+
           final List<UpsertTagRequest> upsertRequests = issues
               .stream()
               .map(i -> i.toUpsertTagRequest(tagUpsertPath()))
@@ -97,7 +100,7 @@ public class JiraConnector implements WiseTimeConnector {
 
           final long lastSyncedIssueId = issues.get(issues.size() - 1).getId();
           connectorStore.putLong(LAST_SYNCED_ISSUE_KEY, lastSyncedIssueId);
-
+          log.info("Last synced issue ID: {}", lastSyncedIssueId);
         } catch (IOException e) {
           // The batch will be retried since we didn't update the last synced issue ID
           // Let scheduler know that this batch has failed
