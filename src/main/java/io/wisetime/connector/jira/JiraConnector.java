@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -112,6 +113,7 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
+    log.info("PostTime request received. Timegroup={}", Base64.getEncoder().encode(timeGroup.toString().getBytes()));
 
     Optional<String> callerKey = callerKey();
     if (callerKey.isPresent() && !callerKey.get().equals(timeGroup.getCallerKey())) {
