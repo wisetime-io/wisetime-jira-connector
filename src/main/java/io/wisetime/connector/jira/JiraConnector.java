@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -84,9 +85,15 @@ public class JiraConnector implements WiseTimeConnector {
       );
 
       if (issues.isEmpty()) {
+        log.info("No new tags found. Last issue ID synced: {}", lastPreviouslySyncedIssueId);
         return;
       } else {
         try {
+          log.info("Detected {} new {}: {}",
+              issues.size(),
+              issues.size() > 1 ? "tags" : "tag",
+              issues.stream().map(Issue::getKey).collect(Collectors.joining(", ")));
+
           final List<UpsertTagRequest> upsertRequests = issues
               .stream()
               .map(i -> i.toUpsertTagRequest(tagUpsertPath()))
@@ -96,7 +103,7 @@ public class JiraConnector implements WiseTimeConnector {
 
           final long lastSyncedIssueId = issues.get(issues.size() - 1).getId();
           connectorStore.putLong(LAST_SYNCED_ISSUE_KEY, lastSyncedIssueId);
-
+          log.info("Last synced issue ID: {}", lastSyncedIssueId);
         } catch (IOException e) {
           // The batch will be retried since we didn't update the last synced issue ID
           // Let scheduler know that this batch has failed
@@ -112,6 +119,9 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
+    log.info("Posted time received for {}: {}",
+        timeGroup.getUser().getExternalId(),
+        Base64.getEncoder().encodeToString(timeGroup.toString().getBytes()));
 
     Optional<String> callerKey = callerKey();
     if (callerKey.isPresent() && !callerKey.get().equals(timeGroup.getCallerKey())) {
