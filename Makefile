@@ -1,3 +1,3 @@
 
 docker:
-	./gradlew jibBuild
+	./gradlew clean jibBuild
