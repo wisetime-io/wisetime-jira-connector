@@ -211,7 +211,7 @@ class JiraDao {
 
   Optional<Long> getWorklogSeqId() {
     try {
-      final long seqId = query().select("SELECT seq_id FROM sequence_value_item WHERE seq_name='Worklog'")
+      final long seqId = query().select("SELECT seq_id FROM SEQUENCE_VALUE_ITEM WHERE seq_name='Worklog'")
           .singleResult(Mappers.singleLong());
       return Optional.of(seqId);
     } catch (FluentJdbcException e) {
@@ -220,13 +220,13 @@ class JiraDao {
   }
 
   private void createWorklogSeqId(final long seqId) {
-    query().update("INSERT INTO sequence_value_item (seq_name, seq_id) VALUES ('Worklog', ?)")
+    query().update("INSERT INTO SEQUENCE_VALUE_ITEM (seq_name, seq_id) VALUES ('Worklog', ?)")
         .params(seqId)
         .run();
   }
 
   private void updateWorklogSeqId(final long newSeqId) {
-    query().update("UPDATE sequence_value_item SET seq_id=? WHERE seq_name='Worklog'")
+    query().update("UPDATE SEQUENCE_VALUE_ITEM SET seq_id=? WHERE seq_name='Worklog'")
         .params(newSeqId)
         .run();
   }
