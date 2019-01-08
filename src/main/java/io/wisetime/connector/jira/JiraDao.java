@@ -6,6 +6,7 @@ package io.wisetime.connector.jira;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 
@@ -144,7 +145,7 @@ class JiraDao {
 
     return query().select(query)
         .namedParam("startIdExclusive", startIdExclusive)
-        .namedParam("projectKeys", projectKeys)
+        .namedParam("projectKeys", Lists.newArrayList(projectKeys))
         .namedParam("maxResults", maxResults)
         .listResult(this::buildIssueFromResultSet);
   }
