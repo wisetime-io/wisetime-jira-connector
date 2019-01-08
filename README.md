@@ -60,7 +60,7 @@ If configured, the Jira Connector can send application logs to [AWS CloudWatch](
 | --------------------- | ---------------------------------------------------- |
 | AWS_ACCESS_KEY_ID     | AWS access key for account with access to CloudWatch |
 | AWS_SECRET_ACCESS_KEY | Secret for the AWS access key                        |
-| AWS_DEFAULT_REGION    | AWS region to log to                                 |
+| AWS_REGION            | AWS region to log to                                 |
 
 ## Building
 
