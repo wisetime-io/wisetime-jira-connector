@@ -30,6 +30,7 @@ public class ConnectorLauncher {
 
   public static void main(final String... args) throws Exception {
     ServerRunner.createServerBuilder()
+        .withTemplatePath("classpath:jira-template.ftl")
         .withWiseTimeConnector(Guice.createInjector(new JiraDbModule()).getInstance(JiraConnector.class))
         .build()
         .startServer();
