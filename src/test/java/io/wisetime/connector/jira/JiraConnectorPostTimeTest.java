@@ -295,6 +295,25 @@ class JiraConnectorPostTimeTest {
         .as("Only configured project keys should be handled when posting time");
   }
 
+  @Test
+  void postTime_should_handle_tags_not_matching_project_keys_filter() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT");
+
+    final Tag tagOther = fakeEntities.randomTag("/Jira/").name("OTHER-1");
+    final TimeGroup timeGroup = fakeEntities
+        .randomTimeGroup()
+        .tags(ImmutableList.of(tagOther));
+
+    when(jiraDao.findUsername(anyString()))
+        .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("There is nothing to post to Jira")
+        .isEqualTo(PostResult.SUCCESS);
+
+    verifyJiraNotUpdated();
+  }
+
   private void verifyJiraNotUpdated() {
     verify(jiraDao, never()).updateIssueTimeSpent(anyLong(), anyLong());
     verify(jiraDao, never()).createWorklog(any(Worklog.class));

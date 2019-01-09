@@ -134,6 +134,22 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
+    final Predicate<Tag> relevantProjectKey = tag -> {
+      if (getProjectKeysFilter().length == 0) {
+        return true;
+      }
+      return JiraDao.IssueKey
+          .fromTagName(tag.getName())
+          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey.getProjectKey()))
+          .isPresent();
+    };
+
+    final List<Tag> relevantTags = timeGroup.getTags().stream().filter(relevantProjectKey).collect(Collectors.toList());
+    if (relevantTags.isEmpty()) {
+      return PostResult.SUCCESS
+          .withMessage("Time group has no tags matching specified project keys filter. There is nothing to post to Jira.");
+    }
+
     final Optional<LocalDateTime> activityStartTime = startTime(timeGroup);
     if (!activityStartTime.isPresent()) {
       return PostResult.PERMANENT_FAILURE
@@ -145,16 +161,6 @@ public class JiraConnector implements WiseTimeConnector {
       return PostResult.PERMANENT_FAILURE
           .withMessage("User does not exist in Jira");
     }
-
-    final Predicate<Tag> relevantProjectKey = tag -> {
-      if (getProjectKeysFilter().length == 0) {
-        return true;
-      }
-      return JiraDao.IssueKey
-          .fromTagName(tag.getName())
-          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey.getProjectKey()))
-          .isPresent();
-    };
 
     final Function<Tag, Optional<Issue>> findIssue = tag -> {
       final Optional<Issue> issue = jiraDao.findIssueByTagName(tag.getName());
@@ -191,11 +197,8 @@ public class JiraConnector implements WiseTimeConnector {
 
     try {
       jiraDao.asTransaction(() ->
-          timeGroup
-              .getTags()
+          relevantTags
               .stream()
-              .filter(relevantProjectKey)
-
               .map(findIssue)
               .filter(Optional::isPresent)
               .map(Optional::get)
