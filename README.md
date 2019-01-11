@@ -29,7 +29,7 @@ The following configuration options are optional.
 | TAG_UPSERT_BATCH_SIZE | Number of tags to upsert at a time. A large batch size mitigates API call latency. Defaults to 500.                                                                                                                        |
 | PROJECT_KEYS_FILTER   | If set, the connector will only handle Jira issues from the configured Jira project keys.                                                                                                                                  |
 | DATA_DIR              | If set, the connector will use the directory as the location for storing data to keep track on the Jira issues it has synced. By default, WiseTime Connector will create a temporary dir under `/tmp` as its data storage. |
-| TIMEZONE              | The timezone to use when posting time to Jira if the default timezone is not available Jira's database, e.g. `Australia/Perth`. Defaults to `UTC`.                                                                         |
+| TIMEZONE              | The timezone to use when posting time to Jira if the default timezone is not available in Jira's database, e.g. `Australia/Perth`. Defaults to `UTC`.                                                                      |
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 
