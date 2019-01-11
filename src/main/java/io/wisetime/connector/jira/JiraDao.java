@@ -35,7 +35,10 @@ import java.util.Set;
 
 import javax.sql.DataSource;
 
+import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.generated.connect.UpsertTagRequest;
+
+import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
@@ -201,7 +204,7 @@ class JiraDao {
       );
     }
 
-    return ZoneId.systemDefault();
+    return ZoneId.of(RuntimeConfig.getString(JiraConnectorConfigKey.TIMEZONE).orElse("UTC"));
   }
 
   private void upsertWorklogSeqId(final long seqId) {
