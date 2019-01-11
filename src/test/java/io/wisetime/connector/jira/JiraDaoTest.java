@@ -28,6 +28,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -248,53 +249,64 @@ class JiraDaoTest {
 
   @Test
   void createWorklog_newRecord() {
-    final ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
-    final ZoneId perthTz = ZoneId.of("Australia/Perth");
-
     // Specify timezone to use
+    final ZoneId perthTz = ZoneId.of("Australia/Perth");
     saveDefaultTimeZone(1, perthTz.getId());
 
-    Worklog workLogWithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
-    Worklog workLogWithPerthTz = Worklog.builder().from(workLogWithSydneyTz)
-        .created(ZonedDateTime.of(workLogWithSydneyTz.getCreated(), ZoneOffset.UTC).toLocalDateTime().withNano(0))
-        .build();
-
+    Worklog workLogUtc = RANDOM_DATA_GENERATOR.randomWorklog();
     final Optional<Long> startingWorklogId = jiraDao.getWorklogSeqId();
     assertThat(startingWorklogId).isEmpty();
 
-    jiraDao.createWorklog(workLogWithSydneyTz);
+    jiraDao.createWorklog(workLogUtc);
+
+    Worklog expectedSavedWorkLog = convertWorkLogWithZone(workLogUtc, perthTz);
 
     assertThat(getWorklog(10299).get()) // 10299 is the starting worklog seq id we set if table is empty
-        .as("Worklog should be saved with created time set the zone specified")
-        .isEqualTo(workLogWithPerthTz);
+        .as("Worklog should be saved with created time set in the timezone specified")
+        .isEqualTo(expectedSavedWorkLog);
+    assertThat(ChronoUnit.HOURS.between(workLogUtc.getCreated(), expectedSavedWorkLog.getCreated()))
+        .as("ensure that date are converted correctly")
+        .isEqualTo(8);
   }
 
   @Test
   void createWorklog_withExistingWorklog() {
-    final ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
-    final ZoneId perthTz = ZoneId.of("Australia/Perth");
-
     // Specify timezone to use
+    final ZoneId perthTz = ZoneId.of("Australia/Perth");
     saveDefaultTimeZone(1, perthTz.getId());
 
-    // Create worklog
-    final Worklog workLog1WithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
-    jiraDao.createWorklog(workLog1WithSydneyTz);
+    // Create initial worklog
+    final Worklog workLogUtc = RANDOM_DATA_GENERATOR.randomWorklog();
+    jiraDao.createWorklog(workLogUtc);
 
-    Worklog workLog2WithSydneyTz = RANDOM_DATA_GENERATOR.randomWorklog(sydneyTz);
-    Worklog workLog2WithPerthTz = Worklog.builder().from(workLog2WithSydneyTz)
-        .created(ZonedDateTime.of(workLog2WithSydneyTz.getCreated(), perthTz).toLocalDateTime().withNano(0))
-        .build();
+    // Create another worklog
+    Worklog anotherWorkLogUtc = RANDOM_DATA_GENERATOR.randomWorklog();
     final Optional<Long> currentWorkLogId = jiraDao.getWorklogSeqId();
     assertThat(currentWorkLogId)
         .as("Should contain the worklog ID of the previously created worklog")
         .isPresent();
+    jiraDao.createWorklog(anotherWorkLogUtc);
 
-    jiraDao.createWorklog(workLog2WithSydneyTz);
+    // Check the latest created worklog
+    Worklog savedWorklog = getWorklog(currentWorkLogId.get() + 199).get();
 
-    assertThat(getWorklog(currentWorkLogId.get() + 199).get()) // we increment 199 to generate new worklog seq ID
+    Worklog expectedSavedWorkLog = convertWorkLogWithZone(anotherWorkLogUtc, perthTz);
+
+    assertThat(savedWorklog) // we increment 199 to generate new worklog seq ID
         .as("Worklog should be saved with created time set in the timezone specified")
-        .isEqualTo(workLog2WithPerthTz);
+        .isEqualTo(expectedSavedWorkLog);
+    assertThat(ChronoUnit.HOURS.between(anotherWorkLogUtc.getCreated(), expectedSavedWorkLog.getCreated()))
+        .as("ensure that date are converted correctly")
+        .isEqualTo(8);
+  }
+
+  private Worklog convertWorkLogWithZone(Worklog workLogUtc, ZoneId perthTz) {
+    return Worklog.builder().from(workLogUtc)
+        .created(ZonedDateTime
+            .of(workLogUtc.getCreated(), ZoneOffset.UTC)
+            .withZoneSameInstant(perthTz)
+            .toLocalDateTime())
+        .build();
   }
 
   private void saveProject(Long projecId, String projectKey) {

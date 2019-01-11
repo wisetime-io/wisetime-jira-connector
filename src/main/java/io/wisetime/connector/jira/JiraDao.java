@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -176,7 +177,9 @@ class JiraDao {
         .namedParam("timeSpent", worklog.getTimeWorked())
         .namedParam(
             "createdDate",
-            ZonedDateTime.of(worklog.getCreated(), getJiraDefaultTimeZone()).format(dateTimeFormatter)
+            ZonedDateTime.of(worklog.getCreated(), ZoneOffset.UTC)
+                .withZoneSameInstant(getJiraDefaultTimeZone())
+                .format(dateTimeFormatter)
         )
         .namedParam("comment", worklog.getBody())
         .run();
