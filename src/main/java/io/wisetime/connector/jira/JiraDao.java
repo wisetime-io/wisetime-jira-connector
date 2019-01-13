@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -34,7 +35,10 @@ import java.util.Set;
 
 import javax.sql.DataSource;
 
+import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.generated.connect.UpsertTagRequest;
+
+import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
@@ -176,7 +180,9 @@ class JiraDao {
         .namedParam("timeSpent", worklog.getTimeWorked())
         .namedParam(
             "createdDate",
-            ZonedDateTime.of(worklog.getCreated(), getJiraDefaultTimeZone()).format(dateTimeFormatter)
+            ZonedDateTime.of(worklog.getCreated(), ZoneOffset.UTC)
+                .withZoneSameInstant(getJiraDefaultTimeZone())
+                .format(dateTimeFormatter)
         )
         .namedParam("comment", worklog.getBody())
         .run();
@@ -198,7 +204,7 @@ class JiraDao {
       );
     }
 
-    return ZoneId.systemDefault();
+    return ZoneId.of(RuntimeConfig.getString(JiraConnectorConfigKey.TIMEZONE).orElse("UTC"));
   }
 
   private void upsertWorklogSeqId(final long seqId) {

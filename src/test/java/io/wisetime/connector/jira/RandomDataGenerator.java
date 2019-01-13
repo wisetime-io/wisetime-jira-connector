@@ -8,8 +8,7 @@ import com.google.common.base.Preconditions;
 
 import com.github.javafaker.Faker;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -52,12 +51,12 @@ class RandomDataGenerator {
     return randomEntities(this::randomIssue, count, count);
   }
 
-  Worklog randomWorklog(ZoneId zoneId) {
+  Worklog randomWorklog() {
     return Worklog.builder()
         .author(FAKER.internet().emailAddress())
         .body(FAKER.book().title())
         .timeWorked(FAKER.random().nextInt(120, 3600))
-        .created(ZonedDateTime.now(zoneId).toLocalDateTime())
+        .created(LocalDateTime.now().withNano(0))
         .issueId(FAKER.random().nextInt(1, 999999))
         .build();
   }
