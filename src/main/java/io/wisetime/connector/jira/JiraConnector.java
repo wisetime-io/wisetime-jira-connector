@@ -31,6 +31,7 @@ import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.integrate.WiseTimeConnector;
 import io.wisetime.connector.template.TemplateFormatter;
+import io.wisetime.connector.template.TemplateFormatterConfig;
 import io.wisetime.connector.utils.DurationCalculator;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
@@ -66,12 +67,16 @@ public class JiraConnector implements WiseTimeConnector {
 
     this.apiClient = connectorModule.getApiClient();
     this.connectorStore = connectorModule.getConnectorStore();
-    this.templateFormatter = connectorModule.getTemplateFormatter();
+    templateFormatter = new TemplateFormatter(
+        TemplateFormatterConfig.builder()
+            .withTemplatePath("classpath:jira-template.ftl")
+            .build()
+    );
   }
 
   /**
-   * Called by the WiseTime Connector library on a regular schedule.
-   * Finds Jira issues that haven't been synced and creates matching tags for them in WiseTime.
+   * Called by the WiseTime Connector library on a regular schedule. Finds Jira issues that haven't been synced and creates
+   * matching tags for them in WiseTime.
    */
   @Override
   public void performTagUpdate() {
@@ -114,8 +119,8 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called by the WiseTime Connector library whenever a user posts time to our team.
-   * Updates the relevant issue and creates a Jira Worklog entry for it.
+   * Called by the WiseTime Connector library whenever a user posts time to our team. Updates the relevant issue and creates
+   * a Jira Worklog entry for it.
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
@@ -182,11 +187,12 @@ public class JiraConnector implements WiseTimeConnector {
     };
 
     final Function<Issue, Issue> createWorklog = forIssue -> {
+      final String messageBody = templateFormatter.format(timeGroup);
       final Worklog worklog = Worklog
           .builder()
           .issueId(forIssue.getId())
           .author(author.get())
-          .body(templateFormatter.format(timeGroup))
+          .body(messageBody)
           .created(activityStartTime.get())
           .timeWorked(workedTime)
           .build();
@@ -242,8 +248,8 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * If configured, the connector will only handle the project keys returned by this method.
-   * If project keys filter is configured, the connector will handle all Jira projects.
+   * If configured, the connector will only handle the project keys returned by this method. If project keys filter is
+   * not configured, the connector will handle all Jira projects.
    *
    * @return array of projects keys
    */

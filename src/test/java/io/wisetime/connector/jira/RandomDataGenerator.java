@@ -14,7 +14,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import io.wisetime.connector.testutils.FakeEntities;
 import io.wisetime.generated.connect.Tag;
 
 import static io.wisetime.connector.jira.JiraDao.Issue;
