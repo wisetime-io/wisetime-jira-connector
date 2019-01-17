@@ -22,7 +22,6 @@ import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
-import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
@@ -80,7 +79,7 @@ class JiraConnectorPerformTagUpdateTest {
     // Ensure JiraConnector#init will not fail
     doReturn(true).when(jiraDao).hasExpectedSchema();
 
-    connector.init(new ConnectorModule(apiClient, mock(TemplateFormatter.class), connectorStore));
+    connector.init(new ConnectorModule(apiClient, connectorStore));
   }
 
   @SuppressWarnings("Duplicates")

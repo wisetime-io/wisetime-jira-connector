@@ -23,7 +23,6 @@ import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.connector.template.TemplateFormatter;
-import io.wisetime.connector.testutils.FakeEntities;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
@@ -70,7 +69,7 @@ class JiraConnectorPostTimeTest {
     // Ensure JiraConnector#init will not fail
     doReturn(true).when(jiraDao).hasExpectedSchema();
 
-    connector.init(new ConnectorModule(apiClient, templateFormatter, mock(ConnectorStore.class)));
+    connector.init(new ConnectorModule(apiClient, mock(ConnectorStore.class)));
   }
 
   @BeforeEach
@@ -222,8 +221,8 @@ class JiraConnectorPostTimeTest {
         .thenReturn("Work log body");
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
-        .isEqualTo(PostResult.SUCCESS)
-        .as("Valid time group should be posted successfully");
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
 
     // Verify worklog creation
     ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
@@ -243,8 +242,7 @@ class JiraConnectorPostTimeTest {
         .as("The author should be set to the posted time user's external ID");
 
     assertThat(createdWorklogs.get(0).getBody())
-        .isEqualTo("Work log body")
-        .as("The worklog body should be set to the output of the template formatter");
+        .isNotEmpty();
 
     assertThat(createdWorklogs.get(0).getCreated())
         .isEqualTo(LocalDateTime.of(2018, 11, 1, 9, 0))

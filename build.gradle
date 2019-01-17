@@ -28,7 +28,7 @@ apply from: "$rootDir/gradle/conf/jacoco.gradle"
 
 group = 'io.wisetime'
 archivesBaseName = 'wisetime-jira-connector'
-version = '1.0-SNAPSHOT'
+version = '2.0-SNAPSHOT'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 mainClassName = 'io.wisetime.connector.jira.ConnectorLauncher'
@@ -63,15 +63,12 @@ ext.jacocoLimits = [
 dependencies {
     compile 'org.apache.commons:commons-configuration2:2.4'
 
-    compile ('io.wisetime:wise-log-aws:3.1.0') {
-        exclude group: 'com.google.guava', module: 'guava'
-    }
-    compile ('com.google.inject:guice:4.2.2') {
+    compile 'io.wisetime:wisetime-connector:2.0.0'
+
+    compile('com.google.inject:guice:4.2.2') {
         exclude group: 'com.google.guava', module: 'guava'
     }
     compile 'com.google.guava:guava:25.1-jre'
-
-    compile 'io.wisetime:wisetime-connector:1.1.3'
 
     compile 'org.codejargon:fluentjdbc:1.8.3'
     compile 'com.zaxxer:HikariCP:3.2.0'
@@ -90,9 +87,18 @@ dependencies {
     testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
     testCompile 'org.mockito:mockito-core:2.22.0'
     testCompile 'org.assertj:assertj-core:3.11.1'
-    testCompile 'com.github.javafaker:javafaker:0.16'
+    testCompile ('com.github.javafaker:javafaker:0.16') {
+        exclude group: 'org.apache.commons', module: 'commons-lang3'
+    }
     testCompile 'org.flywaydb:flyway-core:5.1.1'
     testRuntime 'com.h2database:h2:1.4.197'
+}
+
+configurations.all {
+    resolutionStrategy {
+        // fail eagerly on version conflict of transitive dependencies
+        failOnVersionConflict()
+    }
 }
 
 test {
