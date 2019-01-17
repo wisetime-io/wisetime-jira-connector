@@ -255,7 +255,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   /**
    * If configured, the connector will only handle the project keys returned by this method. If project keys filter is
-   * configured, the connector will handle all Jira projects.
+   * not configured, the connector will handle all Jira projects.
    *
    * @return array of projects keys
    */
