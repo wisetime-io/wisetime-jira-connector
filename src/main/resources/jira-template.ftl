@@ -3,7 +3,7 @@
 <#if getNarrativeType() == "NARRATIVE_AND_TIME_ROW_ACTIVITY_DESCRIPTIONS">
  <#list getTimeRows() as timeRow>
   <#assign rowTotalDuration += timeRow.getDurationSecs()>
-  |${timeRow.getActivity()}|${timeRow.getDescription()}|
+  |${timeRow.getActivity()}|${timeRow.getDescription()!"N/A"}|
  </#list>
 </#if>
 <#if getDescription()?has_content || getNarrativeType() == "NARRATIVE_AND_TIME_ROW_ACTIVITY_DESCRIPTIONS">

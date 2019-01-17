@@ -37,7 +37,6 @@ import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.UpsertTagRequest;
 import spark.Request;
-import spark.utils.StringUtils;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 import static io.wisetime.connector.jira.JiraDao.Issue;
@@ -188,11 +187,6 @@ public class JiraConnector implements WiseTimeConnector {
     };
 
     final Function<Issue, Issue> createWorklog = forIssue -> {
-      timeGroup.getTimeRows().forEach(row -> {
-        if (StringUtils.isEmpty(row.getDescription())) {
-          row.setDescription("N/A");
-        }
-      });
       final String messageBody = templateFormatter.format(timeGroup);
       final Worklog worklog = Worklog
           .builder()
