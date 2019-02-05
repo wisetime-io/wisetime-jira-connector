@@ -63,7 +63,7 @@ ext.jacocoLimits = [
 dependencies {
     compile 'org.apache.commons:commons-configuration2:2.4'
 
-    compile 'io.wisetime:wisetime-connector:1.2.1'
+    compile 'io.wisetime:wisetime-connector:1.2.2'
 
     compile('com.google.inject:guice:4.2.2') {
         exclude group: 'com.google.guava', module: 'guava'
