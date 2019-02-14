@@ -71,6 +71,7 @@ public class FakeEntities {
     return new TimeRow()
         .activity(FAKER.lorem().characters(30, 100))
         .activityHour(2018110100 + FAKER.random().nextInt(1, 23))
+        .description(FAKER.superhero().descriptor())
         .durationSecs(FAKER.random().nextInt(120, 600))
         .submittedDate(Long.valueOf(FAKER.numerify("20180#1#1#5#2####")))
         .modifier(FAKER.lorem().word())

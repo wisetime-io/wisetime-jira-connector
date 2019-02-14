@@ -22,7 +22,6 @@ import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.integrate.ConnectorModule;
-import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
@@ -51,39 +50,37 @@ import static org.mockito.Mockito.when;
  */
 class JiraConnectorPostTimeTest {
 
-  private static JiraDao jiraDao = mock(JiraDao.class);
-  private static ApiClient apiClient = mock(ApiClient.class);
-  private static TemplateFormatter templateFormatter = mock(TemplateFormatter.class);
+  private static JiraDao jiraDaoMock = mock(JiraDao.class);
+  private static ApiClient apiClientMock = mock(ApiClient.class);
   private static JiraConnector connector;
   private static FakeEntities fakeEntities = new FakeEntities();
   private static RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
 
   @BeforeAll
   static void setUp() {
-    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
-
     connector = Guice.createInjector(binder -> {
-      binder.bind(JiraDao.class).toProvider(() -> jiraDao);
+      binder.bind(JiraDao.class).toProvider(() -> jiraDaoMock);
     }).getInstance(JiraConnector.class);
 
     // Ensure JiraConnector#init will not fail
-    doReturn(true).when(jiraDao).hasExpectedSchema();
+    doReturn(true).when(jiraDaoMock).hasExpectedSchema();
 
-    connector.init(new ConnectorModule(apiClient, mock(ConnectorStore.class)));
+    connector.init(new ConnectorModule(apiClientMock, mock(ConnectorStore.class)));
   }
 
   @BeforeEach
   void setUpTest() {
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
+    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
-    reset(templateFormatter);
-    reset(jiraDao);
+    reset(jiraDaoMock);
+    reset(apiClientMock);
 
     // Ensure that code in the transaction lambda gets exercised
     doAnswer(invocation -> {
       invocation.<Runnable>getArgument(0).run();
       return null;
-    }).when(jiraDao).asTransaction(any(Runnable.class));
+    }).when(jiraDaoMock).asTransaction(any(Runnable.class));
   }
 
   @Test
@@ -142,7 +139,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_cant_find_user() {
-    when(jiraDao.findUsername(anyString())).thenReturn(Optional.empty());
+    when(jiraDaoMock.findUsername(anyString())).thenReturn(Optional.empty());
 
     assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
@@ -153,7 +150,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_cant_find_issue() {
-    when(jiraDao.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+    when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
 
     assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
         .isEqualTo(PostResult.PERMANENT_FAILURE)
@@ -166,15 +163,14 @@ class JiraConnectorPostTimeTest {
   void postTime_db_transaction_error() {
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
 
-    when(jiraDao.findUsername(anyString()))
+    when(jiraDaoMock.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     final Tag tag = fakeEntities.randomTag("/Jira/");
     final Issue issue = randomDataGenerator.randomIssue(tag.getName());
 
-    when(jiraDao.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
-    when(templateFormatter.format(any(TimeGroup.class))).thenReturn("Work log body");
-    doThrow(new RuntimeException("Test exception")).when(jiraDao).createWorklog(any(Worklog.class));
+    when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
+    doThrow(new RuntimeException("Test exception")).when(jiraDaoMock).createWorklog(any(Worklog.class));
 
     final PostResult result = connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup());
 
@@ -205,20 +201,17 @@ class JiraConnectorPostTimeTest {
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
         .totalDurationSecs(1500);
 
-    when(jiraDao.findUsername(anyString()))
+    when(jiraDaoMock.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     final Issue issue1 = randomDataGenerator.randomIssue(tag1.getName());
     final Issue issue2 = randomDataGenerator.randomIssue(tag1.getName());
 
-    when(jiraDao.findIssueByTagName(anyString()))
+    when(jiraDaoMock.findIssueByTagName(anyString()))
         .thenReturn(Optional.of(issue1))
         .thenReturn(Optional.of(issue2))
         // Last tag has no matching Jira issue
         .thenReturn(Optional.empty());
-
-    when(templateFormatter.format(any(TimeGroup.class)))
-        .thenReturn("Work log body");
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -226,7 +219,7 @@ class JiraConnectorPostTimeTest {
 
     // Verify worklog creation
     ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
-    verify(jiraDao, times(2)).createWorklog(worklogCaptor.capture());
+    verify(jiraDaoMock, times(2)).createWorklog(worklogCaptor.capture());
     List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
 
     assertThat(createdWorklogs.get(0).getIssueId())
@@ -255,7 +248,7 @@ class JiraConnectorPostTimeTest {
 
     ArgumentCaptor<Long> idUpdateIssueCaptor = ArgumentCaptor.forClass(Long.class);
     ArgumentCaptor<Long> timeSpentUpdateIssueCaptor = ArgumentCaptor.forClass(Long.class);
-    verify(jiraDao, times(2))
+    verify(jiraDaoMock, times(2))
         .updateIssueTimeSpent(idUpdateIssueCaptor.capture(), timeSpentUpdateIssueCaptor.capture());
 
     List<Long> updatedIssueIds = idUpdateIssueCaptor.getAllValues();
@@ -280,13 +273,13 @@ class JiraConnectorPostTimeTest {
         .randomTimeGroup()
         .tags(ImmutableList.of(tagWt, tagOther));
 
-    when(jiraDao.findUsername(anyString()))
+    when(jiraDaoMock.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     connector.postTime(fakeRequest(), timeGroup);
 
     ArgumentCaptor<String> tagNameCaptor = ArgumentCaptor.forClass(String.class);
-    verify(jiraDao, times(1)).findIssueByTagName(tagNameCaptor.capture());
+    verify(jiraDaoMock, times(1)).findIssueByTagName(tagNameCaptor.capture());
 
     assertThat(tagNameCaptor.getValue())
         .isEqualTo("WT-2")
@@ -302,7 +295,7 @@ class JiraConnectorPostTimeTest {
         .randomTimeGroup()
         .tags(ImmutableList.of(tagOther));
 
-    when(jiraDao.findUsername(anyString()))
+    when(jiraDaoMock.findUsername(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
@@ -312,9 +305,131 @@ class JiraConnectorPostTimeTest {
     verifyJiraNotUpdated();
   }
 
+  @Test
+  void postTime_check_narrative_duration_divide_between_tags() {
+    final Tag tag1 = fakeEntities.randomTag("/Jira/");
+    final Tag tag2 = fakeEntities.randomTag("/Jira/");
+
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(2400);
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(66);
+
+    final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
+
+    final TimeGroup timeGroup = expectSuccessfulPostingTime(
+        user, ImmutableList.of(timeRow1, timeRow2), ImmutableList.of(tag1, tag2)
+    )
+        .totalDurationSecs(3000)
+        .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
+        .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
+
+    // Verify worklog creation
+    ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDaoMock, times(2)).createWorklog(worklogCaptor.capture());
+    List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
+
+    assertThat(createdWorklogs.get(0).getBody())
+        .as("The diary body should be set to the output of the template formatter")
+        .startsWith(timeGroup.getDescription())
+        .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
+        .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
+        .contains("Total worked time: 41m 6s\n" +
+            "Total chargeable time: 50m\n" +
+            "Experience factor: 50%")
+        .endsWith("The above times have been split across 2 cases and are thus greater than " +
+            "the chargeable time in this case");
+  }
+
+  @Test
+  void postTime_check_narrative_duration_whole_duration_each_tag() {
+    final Tag tag1 = fakeEntities.randomTag("/Jira/");
+    final Tag tag2 = fakeEntities.randomTag("/Jira/");
+
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
+
+    final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
+
+    final TimeGroup timeGroup = expectSuccessfulPostingTime(
+        user, ImmutableList.of(timeRow1, timeRow2), ImmutableList.of(tag1, tag2)
+    )
+        .totalDurationSecs(3000)
+        .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
+        .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
+
+    // Verify worklog creation
+    ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDaoMock, times(2)).createWorklog(worklogCaptor.capture());
+    List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
+
+    assertThat(createdWorklogs.get(0).getBody())
+        .as("The diary body should be set to the output of the template formatter")
+        .startsWith(timeGroup.getDescription())
+        .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
+        .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
+        .doesNotContain("Total worked time:")
+        .doesNotContain("Total chargeable time:")
+        .endsWith("Experience factor: 80%");
+  }
+
+  @Test
+  void postTime_check_narrative_duration_narrative_only() {
+    final Tag tag1 = fakeEntities.randomTag("/Jira/");
+    final Tag tag2 = fakeEntities.randomTag("/Jira/");
+
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
+
+    final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
+
+    final TimeGroup timeGroup = expectSuccessfulPostingTime(
+        user, ImmutableList.of(timeRow1, timeRow2), ImmutableList.of(tag1, tag2)
+    )
+        .totalDurationSecs(3000)
+        .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
+        .narrativeType(TimeGroup.NarrativeTypeEnum.ONLY);
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
+
+    // Verify worklog creation
+    ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDaoMock, times(2)).createWorklog(worklogCaptor.capture());
+    List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
+
+    assertThat(createdWorklogs.get(0).getBody())
+        .as("The diary body should be set to the output of the template formatter")
+        .startsWith(timeGroup.getDescription())
+        .doesNotContain(timeRow1.getActivity(), timeRow1.getDescription())
+        .doesNotContain(timeRow2.getActivity(), timeRow2.getDescription())
+        .doesNotContain("Total worked time:", "Total chargeable time:")
+        .endsWith("Experience factor: 80%");
+  }
+
+  private TimeGroup expectSuccessfulPostingTime(User user, List<TimeRow> timeRows, List<Tag> tags) {
+    when(jiraDaoMock.findUsername(anyString()))
+        .thenReturn(Optional.of(user.getExternalId()));
+
+    tags.forEach(tag -> when(jiraDaoMock.findIssueByTagName(tag.getName()))
+        .thenReturn(Optional.of(randomDataGenerator.randomIssue(tag.getName()))));
+
+    return fakeEntities.randomTimeGroup()
+        .tags(tags)
+        .timeRows(timeRows)
+        .user(user);
+  }
+
   private void verifyJiraNotUpdated() {
-    verify(jiraDao, never()).updateIssueTimeSpent(anyLong(), anyLong());
-    verify(jiraDao, never()).createWorklog(any(Worklog.class));
+    verify(jiraDaoMock, never()).updateIssueTimeSpent(anyLong(), anyLong());
+    verify(jiraDaoMock, never()).createWorklog(any(Worklog.class));
   }
 
   private Request fakeRequest() {
