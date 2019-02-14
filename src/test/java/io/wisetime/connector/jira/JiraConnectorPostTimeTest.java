@@ -348,8 +348,8 @@ class JiraConnectorPostTimeTest {
     final Tag tag1 = fakeEntities.randomTag("/Jira/");
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
 
-    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(360);
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(360);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
 
@@ -374,9 +374,9 @@ class JiraConnectorPostTimeTest {
         .startsWith(timeGroup.getDescription())
         .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
         .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
-        .doesNotContain("Total worked time:")
-        .doesNotContain("Total chargeable time:")
-        .endsWith("Experience factor: 80%");
+        .endsWith("Total worked time: 12m\n" +
+            "Total chargeable time: 50m\n" +
+            "Experience factor: 80%");
   }
 
   @Test
@@ -384,8 +384,8 @@ class JiraConnectorPostTimeTest {
     final Tag tag1 = fakeEntities.randomTag("/Jira/");
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
 
-    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(420);
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(300);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
 
@@ -410,8 +410,9 @@ class JiraConnectorPostTimeTest {
         .startsWith(timeGroup.getDescription())
         .doesNotContain(timeRow1.getActivity(), timeRow1.getDescription())
         .doesNotContain(timeRow2.getActivity(), timeRow2.getDescription())
-        .doesNotContain("Total worked time:", "Total chargeable time:")
-        .endsWith("Experience factor: 80%");
+        .endsWith("Total worked time: 12m\n" +
+            "Total chargeable time: 50m\n" +
+            "Experience factor: 80%");
   }
 
   private TimeGroup expectSuccessfulPostingTime(User user, List<TimeRow> timeRows, List<Tag> tags) {

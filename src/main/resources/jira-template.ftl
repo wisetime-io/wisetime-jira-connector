@@ -6,10 +6,8 @@
  </#list>
 </#if>
 
-<#if getDurationSplitStrategy() == "DIVIDE_BETWEEN_TAGS">
 Total worked time: ${getTotalDuration(getTimeRows())?string.@duration}
 Total chargeable time: ${getTotalDurationSecs()?string.@duration}
-</#if>
 Experience factor: ${getUser().getExperienceWeightingPercent()}%
 
 <#if getDurationSplitStrategy() == "DIVIDE_BETWEEN_TAGS" && (getTags()?size > 1)>
