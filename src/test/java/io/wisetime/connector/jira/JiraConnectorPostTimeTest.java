@@ -307,20 +307,23 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_check_narrative_duration_divide_between_tags() {
-    final Tag tag1 = fakeEntities.randomTag("/Jira/");
-    final Tag tag2 = fakeEntities.randomTag("/Jira/");
+    final List<Tag> tags = ImmutableList.of(
+        fakeEntities.randomTag("/Jira/"), fakeEntities.randomTag("/Jira/")
+    );
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(2400);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(66);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
-    final TimeGroup timeGroup = expectSuccessfulPostingTime(
-        user, ImmutableList.of(timeRow1, timeRow2), ImmutableList.of(tag1, tag2)
-    )
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(tags)
+        .timeRows(ImmutableList.of(timeRow1, timeRow2))
+        .user(user)
         .totalDurationSecs(3000)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
         .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
+    setPrerequisitesForSuccessfulPostTime(user, tags);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -345,20 +348,23 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_check_narrative_duration_whole_duration_each_tag() {
-    final Tag tag1 = fakeEntities.randomTag("/Jira/");
-    final Tag tag2 = fakeEntities.randomTag("/Jira/");
+    final List<Tag> tags = ImmutableList.of(
+        fakeEntities.randomTag("/Jira/"), fakeEntities.randomTag("/Jira/")
+    );
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(360);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(360);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
 
-    final TimeGroup timeGroup = expectSuccessfulPostingTime(
-        user, ImmutableList.of(timeRow1, timeRow2), ImmutableList.of(tag1, tag2)
-    )
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(tags)
+        .timeRows(ImmutableList.of(timeRow1, timeRow2))
+        .user(user)
         .totalDurationSecs(3000)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
         .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
+    setPrerequisitesForSuccessfulPostTime(user, tags);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -381,20 +387,23 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_check_narrative_duration_narrative_only() {
-    final Tag tag1 = fakeEntities.randomTag("/Jira/");
-    final Tag tag2 = fakeEntities.randomTag("/Jira/");
+    final List<Tag> tags = ImmutableList.of(
+        fakeEntities.randomTag("/Jira/"), fakeEntities.randomTag("/Jira/")
+    );
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(420);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(300);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
 
-    final TimeGroup timeGroup = expectSuccessfulPostingTime(
-        user, ImmutableList.of(timeRow1, timeRow2), ImmutableList.of(tag1, tag2)
-    )
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(tags)
+        .timeRows(ImmutableList.of(timeRow1, timeRow2))
+        .user(user)
         .totalDurationSecs(3000)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
         .narrativeType(TimeGroup.NarrativeTypeEnum.ONLY);
+    setPrerequisitesForSuccessfulPostTime(user, tags);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -415,17 +424,11 @@ class JiraConnectorPostTimeTest {
             "Experience factor: 80%");
   }
 
-  private TimeGroup expectSuccessfulPostingTime(User user, List<TimeRow> timeRows, List<Tag> tags) {
-    when(jiraDaoMock.findUsername(anyString()))
-        .thenReturn(Optional.of(user.getExternalId()));
+  private void setPrerequisitesForSuccessfulPostTime(User user, List<Tag> tags) {
+    when(jiraDaoMock.findUsername(anyString())).thenReturn(Optional.of(user.getExternalId()));
 
     tags.forEach(tag -> when(jiraDaoMock.findIssueByTagName(tag.getName()))
         .thenReturn(Optional.of(randomDataGenerator.randomIssue(tag.getName()))));
-
-    return fakeEntities.randomTimeGroup()
-        .tags(tags)
-        .timeRows(timeRows)
-        .user(user);
   }
 
   private void verifyJiraNotUpdated() {
