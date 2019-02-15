@@ -323,7 +323,7 @@ class JiraConnectorPostTimeTest {
         .totalDurationSecs(3000)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
         .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
-    setPrerequisitesForSuccessfulPostTime(user, tags);
+    setPrerequisitesForSuccessfulPostTime(timeGroup);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -364,7 +364,7 @@ class JiraConnectorPostTimeTest {
         .totalDurationSecs(3000)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
         .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
-    setPrerequisitesForSuccessfulPostTime(user, tags);
+    setPrerequisitesForSuccessfulPostTime(timeGroup);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -403,7 +403,7 @@ class JiraConnectorPostTimeTest {
         .totalDurationSecs(3000)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
         .narrativeType(TimeGroup.NarrativeTypeEnum.ONLY);
-    setPrerequisitesForSuccessfulPostTime(user, tags);
+    setPrerequisitesForSuccessfulPostTime(timeGroup);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
         .as("Valid time group should be posted successfully")
@@ -424,10 +424,10 @@ class JiraConnectorPostTimeTest {
             "Experience factor: 80%");
   }
 
-  private void setPrerequisitesForSuccessfulPostTime(User user, List<Tag> tags) {
-    when(jiraDaoMock.findUsername(anyString())).thenReturn(Optional.of(user.getExternalId()));
+  private void setPrerequisitesForSuccessfulPostTime(final TimeGroup timeGroup) {
+    when(jiraDaoMock.findUsername(anyString())).thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
-    tags.forEach(tag -> when(jiraDaoMock.findIssueByTagName(tag.getName()))
+    timeGroup.getTags().forEach(tag -> when(jiraDaoMock.findIssueByTagName(tag.getName()))
         .thenReturn(Optional.of(randomDataGenerator.randomIssue(tag.getName()))));
   }
 
