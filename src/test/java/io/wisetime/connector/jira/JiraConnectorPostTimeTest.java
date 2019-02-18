@@ -339,11 +339,7 @@ class JiraConnectorPostTimeTest {
         .startsWith(timeGroup.getDescription())
         .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
         .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
-        .contains("Total worked time: 41m 6s\n" +
-            "Total chargeable time: 50m\n" +
-            "Experience factor: 50%")
-        .endsWith("The above times have been split across 2 cases and are thus greater than " +
-            "the chargeable time in this case");
+        .endsWith("Applied experience weighting: 50%");
   }
 
   @Test
@@ -380,9 +376,7 @@ class JiraConnectorPostTimeTest {
         .startsWith(timeGroup.getDescription())
         .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
         .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
-        .endsWith("Total worked time: 12m\n" +
-            "Total chargeable time: 50m\n" +
-            "Experience factor: 80%");
+        .endsWith("Applied experience weighting: 80%");
   }
 
   @Test
@@ -419,9 +413,7 @@ class JiraConnectorPostTimeTest {
         .startsWith(timeGroup.getDescription())
         .doesNotContain(timeRow1.getActivity(), timeRow1.getDescription())
         .doesNotContain(timeRow2.getActivity(), timeRow2.getDescription())
-        .endsWith("Total worked time: 12m\n" +
-            "Total chargeable time: 50m\n" +
-            "Experience factor: 80%");
+        .endsWith("Applied experience weighting: 80%");
   }
 
   private void setPrerequisitesForSuccessfulPostTime(final TimeGroup timeGroup) {
