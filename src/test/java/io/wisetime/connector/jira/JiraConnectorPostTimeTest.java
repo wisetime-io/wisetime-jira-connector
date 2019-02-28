@@ -306,13 +306,13 @@ class JiraConnectorPostTimeTest {
   }
 
   @Test
-  void postTime_check_narrative_duration_divide_between_tags() {
+  void postTime_check_narrative_with_time_row_info() {
     final List<Tag> tags = ImmutableList.of(
         fakeEntities.randomTag("/Jira/"), fakeEntities.randomTag("/Jira/")
     );
 
-    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(2400);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(66);
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow();
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow();
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
@@ -320,8 +320,6 @@ class JiraConnectorPostTimeTest {
         .tags(tags)
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
-        .totalDurationSecs(3000)
-        .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
         .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
     setPrerequisitesForSuccessfulPostTime(timeGroup);
 
@@ -340,43 +338,9 @@ class JiraConnectorPostTimeTest {
         .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
         .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
         .endsWith("Applied experience weighting: 50%");
-  }
-
-  @Test
-  void postTime_check_narrative_duration_whole_duration_each_tag() {
-    final List<Tag> tags = ImmutableList.of(
-        fakeEntities.randomTag("/Jira/"), fakeEntities.randomTag("/Jira/")
-    );
-
-    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(360);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(360);
-
-    final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
-
-    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
-        .tags(tags)
-        .timeRows(ImmutableList.of(timeRow1, timeRow2))
-        .user(user)
-        .totalDurationSecs(3000)
-        .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
-        .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
-    setPrerequisitesForSuccessfulPostTime(timeGroup);
-
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
-        .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
-
-    // Verify worklog creation
-    ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
-    verify(jiraDaoMock, times(2)).createWorklog(worklogCaptor.capture());
-    List<Worklog> createdWorklogs = worklogCaptor.getAllValues();
-
     assertThat(createdWorklogs.get(0).getBody())
-        .as("The diary body should be set to the output of the template formatter")
-        .startsWith(timeGroup.getDescription())
-        .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
-        .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
-        .endsWith("Applied experience weighting: 80%");
+        .as("should have the same worklog body to other Jira issue")
+        .isEqualTo(createdWorklogs.get(1).getBody());
   }
 
   @Test
@@ -385,8 +349,8 @@ class JiraConnectorPostTimeTest {
         fakeEntities.randomTag("/Jira/"), fakeEntities.randomTag("/Jira/")
     );
 
-    final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110).durationSecs(420);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109).durationSecs(300);
+    final TimeRow timeRow1 = fakeEntities.randomTimeRow();
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow();
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(80);
 
@@ -394,8 +358,6 @@ class JiraConnectorPostTimeTest {
         .tags(tags)
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
-        .totalDurationSecs(3000)
-        .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.WHOLE_DURATION_TO_EACH_TAG)
         .narrativeType(TimeGroup.NarrativeTypeEnum.ONLY);
     setPrerequisitesForSuccessfulPostTime(timeGroup);
 
@@ -414,6 +376,9 @@ class JiraConnectorPostTimeTest {
         .doesNotContain(timeRow1.getActivity(), timeRow1.getDescription())
         .doesNotContain(timeRow2.getActivity(), timeRow2.getDescription())
         .endsWith("Applied experience weighting: 80%");
+    assertThat(createdWorklogs.get(0).getBody())
+        .as("should have the same worklog body to other Jira issue")
+        .isEqualTo(createdWorklogs.get(1).getBody());
   }
 
   private void setPrerequisitesForSuccessfulPostTime(final TimeGroup timeGroup) {
