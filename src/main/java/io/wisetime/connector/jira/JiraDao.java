@@ -154,7 +154,13 @@ class JiraDao {
         .listResult(this::buildIssueFromResultSet);
   }
 
-  Optional<String> findUsername(final String email) {
+  Optional<String> findUserByUsername(final String username) {
+    return query().select("SELECT user_name FROM cwd_user WHERE lower_user_name = :username")
+        .namedParam("username", username.toLowerCase())
+        .firstResult(Mappers.singleString());
+  }
+
+  Optional<String> findUserByEmail(final String email) {
     return query().select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
         .namedParam("email", email.toLowerCase())
         .firstResult(Mappers.singleString());

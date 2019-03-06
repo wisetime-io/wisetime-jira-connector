@@ -225,13 +225,13 @@ class JiraDaoTest {
         .params("foobar", "foobar@baz.com")
         .run();
 
-    assertThat(jiraDao.findUsername("foobar@baz.com").get())
+    assertThat(jiraDao.findUserByEmail("foobar@baz.com").get())
         .as("Username should be returned if it exists in DB.")
         .isEqualTo("foobar");
-    assertThat(jiraDao.findUsername("Foobar@baz.com").get())
+    assertThat(jiraDao.findUserByEmail("Foobar@baz.com").get())
         .as("Email should not be case sensitive")
         .isEqualTo("foobar");
-    assertThat(jiraDao.findUsername("foo.bar@baz.com"))
+    assertThat(jiraDao.findUserByEmail("foo.bar@baz.com"))
         .as("Should return empty if email is not found in DB")
         .isEmpty();
   }

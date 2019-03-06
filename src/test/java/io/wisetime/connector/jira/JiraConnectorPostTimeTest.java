@@ -138,14 +138,131 @@ class JiraConnectorPostTimeTest {
   }
 
   @Test
-  void postTime_cant_find_user() {
-    when(jiraDaoMock.findUsername(anyString())).thenReturn(Optional.empty());
+  void postTime_cant_find_user_for_external_id_as_username() {
+    final String externalId = "i.am.username";
+    final TimeGroup timeGroup = fakeEntities
+        .randomTimeGroup()
+        .user(fakeEntities.randomUser()
+            .externalId(externalId));
 
-    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
-        .isEqualTo(PostResult.PERMANENT_FAILURE)
-        .as("Can't post time because user doesn't exist in Jira");
+    when(jiraDaoMock.findUserByUsername(externalId)).thenReturn(Optional.empty());
+
+    PostResult result = connector.postTime(fakeRequest(), timeGroup);
+    assertThat(result)
+        .as("Can't post time because external id is not a valid Jira username")
+        .isEqualTo(PostResult.PERMANENT_FAILURE);
+    assertThat(result.getMessage())
+        .as("should be the correct error message for invalid user")
+        .contains("User does not exist in Jira");
+
+    verify(jiraDaoMock, never()).findUserByEmail(anyString());
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_cant_find_user_for_external_id_as_email() {
+    final String externalId = "this-looks@like.email";
+    final TimeGroup timeGroup = fakeEntities
+        .randomTimeGroup()
+        .user(fakeEntities.randomUser()
+            .externalId(externalId));
+
+    when(jiraDaoMock.findUserByUsername(externalId)).thenReturn(Optional.empty());
+    when(jiraDaoMock.findUserByEmail(externalId)).thenReturn(Optional.empty());
+
+    PostResult result = connector.postTime(fakeRequest(), timeGroup);
+    assertThat(result)
+        .as("Can't post time because external id is not a valid Jira username or email")
+        .isEqualTo(PostResult.PERMANENT_FAILURE);
+    assertThat(result.getMessage())
+        .as("should be the correct error message for invalid user")
+        .contains("User does not exist in Jira");
 
     verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_cant_find_user_for_email() {
+    final TimeGroup timeGroup = fakeEntities
+        .randomTimeGroup()
+        .user(fakeEntities.randomUser()
+            .externalId(null)); // we should only check on email if external id is not set
+
+    when(jiraDaoMock.findUserByEmail(timeGroup.getUser().getEmail())).thenReturn(Optional.empty());
+
+    PostResult result = connector.postTime(fakeRequest(), timeGroup);
+    assertThat(result)
+        .as("Can't post time because no user has this email in Jira")
+        .isEqualTo(PostResult.PERMANENT_FAILURE);
+    assertThat(result.getMessage())
+        .as("should be the correct error message for invalid user")
+        .contains("User does not exist in Jira");
+
+    verify(jiraDaoMock, never()).findUserByUsername(anyString());
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_should_use_external_id_as_username() {
+    final String externalId = "i.am.username";
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .user(fakeEntities.randomUser().externalId(externalId));
+    setTimeGroupTagAsValidJiraIssues(timeGroup);
+    when(jiraDaoMock.findUserByUsername(externalId)).thenReturn(Optional.of(externalId));
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
+
+    final ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDaoMock, times(timeGroup.getTags().size())).createWorklog(worklogCaptor.capture());
+    assertThat(worklogCaptor.getValue().getAuthor())
+        .as("should use the external id as username")
+        .isEqualTo(externalId);
+
+    verify(jiraDaoMock, never()).findUserByEmail(any());
+  }
+
+  @Test
+  void postTime_should_use_external_id_as_email() {
+    final String externalId = "this-looks@like.email";
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .user(fakeEntities.randomUser().externalId(externalId));
+    setTimeGroupTagAsValidJiraIssues(timeGroup);
+    when(jiraDaoMock.findUserByUsername(externalId)).thenReturn(Optional.empty());
+    when(jiraDaoMock.findUserByEmail(externalId)).thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
+
+    final ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDaoMock, times(timeGroup.getTags().size())).createWorklog(worklogCaptor.capture());
+    assertThat(worklogCaptor.getValue().getAuthor())
+        .as("should look for Jira user with email as the external id " +
+            "if latter is not a Jira username but looks like an email.")
+        .isEqualTo(timeGroup.getUser().getExternalId());
+  }
+
+  @Test
+  void postTime_should_use_email_for_getting_user() {
+    final String jiraUserName = "valid-jira-username";
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .user(fakeEntities.randomUser().externalId(null)); // set external id to enable email check
+    setTimeGroupTagAsValidJiraIssues(timeGroup);
+    when(jiraDaoMock.findUserByEmail(timeGroup.getUser().getEmail())).thenReturn(Optional.of(jiraUserName));
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .as("Valid time group should be posted successfully")
+        .isEqualTo(PostResult.SUCCESS);
+
+    final ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
+    verify(jiraDaoMock, times(timeGroup.getTags().size())).createWorklog(worklogCaptor.capture());
+    assertThat(worklogCaptor.getValue().getAuthor())
+        .as("should user email to look for Jira user if external id is not set.")
+        .isEqualTo(jiraUserName);
+
+    verify(jiraDaoMock, never()).findUserByUsername(anyString());
   }
 
   @Test
@@ -163,7 +280,7 @@ class JiraConnectorPostTimeTest {
   void postTime_db_transaction_error() {
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
 
-    when(jiraDaoMock.findUsername(anyString()))
+    when(jiraDaoMock.findUserByUsername(timeGroup.getUser().getExternalId()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     final Tag tag = fakeEntities.randomTag("/Jira/");
@@ -172,15 +289,15 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.of(issue));
     doThrow(new RuntimeException("Test exception")).when(jiraDaoMock).createWorklog(any(Worklog.class));
 
-    final PostResult result = connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup());
+    final PostResult result = connector.postTime(fakeRequest(), timeGroup);
 
     assertThat(result)
-        .isEqualTo(PostResult.TRANSIENT_FAILURE)
-        .as("Database transaction error while posting time should result in transient failure");
+        .as("Database transaction error while posting time should result in transient failure")
+        .isEqualTo(PostResult.TRANSIENT_FAILURE);
 
     assertThat(result.getError().get())
-        .isInstanceOf(RuntimeException.class)
-        .as("Post result should contain the cause of the error");
+        .as("Post result should contain the cause of the error")
+        .isInstanceOf(RuntimeException.class);
   }
 
   @Test
@@ -201,7 +318,7 @@ class JiraConnectorPostTimeTest {
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
         .totalDurationSecs(1500);
 
-    when(jiraDaoMock.findUsername(anyString()))
+    when(jiraDaoMock.findUserByUsername(timeGroup.getUser().getExternalId()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     final Issue issue1 = randomDataGenerator.randomIssue(tag1.getName());
@@ -273,7 +390,7 @@ class JiraConnectorPostTimeTest {
         .randomTimeGroup()
         .tags(ImmutableList.of(tagWt, tagOther));
 
-    when(jiraDaoMock.findUsername(anyString()))
+    when(jiraDaoMock.findUserByUsername(timeGroup.getUser().getExternalId()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     connector.postTime(fakeRequest(), timeGroup);
@@ -295,7 +412,7 @@ class JiraConnectorPostTimeTest {
         .randomTimeGroup()
         .tags(ImmutableList.of(tagOther));
 
-    when(jiraDaoMock.findUsername(anyString()))
+    when(jiraDaoMock.findUserByEmail(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
     assertThat(connector.postTime(fakeRequest(), timeGroup))
@@ -382,8 +499,13 @@ class JiraConnectorPostTimeTest {
   }
 
   private void setPrerequisitesForSuccessfulPostTime(final TimeGroup timeGroup) {
-    when(jiraDaoMock.findUsername(anyString())).thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+    when(jiraDaoMock.findUserByUsername(timeGroup.getUser().getExternalId()))
+        .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
+    setTimeGroupTagAsValidJiraIssues(timeGroup);
+  }
+
+  private void setTimeGroupTagAsValidJiraIssues(final TimeGroup timeGroup) {
     timeGroup.getTags().forEach(tag -> when(jiraDaoMock.findIssueByTagName(tag.getName()))
         .thenReturn(Optional.of(randomDataGenerator.randomIssue(tag.getName()))));
   }
