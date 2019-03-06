@@ -220,18 +220,35 @@ class JiraDaoTest {
   }
 
   @Test
-  void findUsername() {
+  void findUserByEmail() {
     fluentJdbc.query().update("INSERT INTO cwd_user (id, user_name, lower_email_address) VALUES (1, ?, ?)")
         .params("foobar", "foobar@baz.com")
         .run();
 
     assertThat(jiraDao.findUserByEmail("foobar@baz.com").get())
-        .as("Username should be returned if it exists in DB.")
+        .as("Username linked to the email should be returned if email is valid.")
         .isEqualTo("foobar");
     assertThat(jiraDao.findUserByEmail("Foobar@baz.com").get())
         .as("Email should not be case sensitive")
         .isEqualTo("foobar");
     assertThat(jiraDao.findUserByEmail("foo.bar@baz.com"))
+        .as("Should return empty if email is not found in DB")
+        .isEmpty();
+  }
+
+  @Test
+  void findUserByUsername() {
+    fluentJdbc.query().update("INSERT INTO cwd_user (id, user_name, lower_user_name) VALUES (1, ?, ?)")
+        .params("FooBar", "foobar")
+        .run();
+
+    assertThat(jiraDao.findUserByUsername("foobar").get())
+        .as("Username should be returned if it exists in DB.")
+        .isEqualTo("FooBar");
+    assertThat(jiraDao.findUserByUsername("FOOBAR").get())
+        .as("Username should not be case sensitive")
+        .isEqualTo("FooBar");
+    assertThat(jiraDao.findUserByUsername("foo.bar"))
         .as("Should return empty if email is not found in DB")
         .isEmpty();
   }

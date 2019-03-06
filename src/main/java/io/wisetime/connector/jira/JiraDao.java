@@ -80,7 +80,7 @@ class JiraDao {
     );
     requiredTablesAndColumnsMap.put(
         "cwd_user",
-        ImmutableSet.of("user_name", "lower_email_address")
+        ImmutableSet.of("user_name", "lower_user_name", "lower_email_address")
     );
     requiredTablesAndColumnsMap.put(
         "worklog",
