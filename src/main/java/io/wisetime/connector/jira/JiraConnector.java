@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -54,10 +53,6 @@ import static io.wisetime.connector.utils.ActivityTimeCalculator.startTime;
 public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
-
-  public static final Pattern EMAIL_REGEX = Pattern.compile(
-      "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$", Pattern.CASE_INSENSITIVE
-  );
 
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
 
@@ -273,17 +268,22 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   private Optional<String> getJiraUser(User user) {
+    Optional<String> jiraUser;
+
     if (StringUtils.isNotBlank(user.getExternalId())) {
-      return Optional.ofNullable(
-          jiraDao.findUserByUsername(user.getExternalId())
-            .orElseGet(() ->
-                EMAIL_REGEX.matcher(user.getExternalId()).find()
-                    ? jiraDao.findUserByEmail(user.getExternalId()).orElse(null)
-                    : null
-            )
-      );
+      // Check if the External ID is the user's Login ID/Username in Jira
+      jiraUser = jiraDao.findUserByUsername(user.getExternalId());
+
+      // if External ID is not the Login ID but it looks like an email, try to find a user with that email
+      if (!jiraUser.isPresent() && user.getExternalId().split("@").length == 2) {
+        jiraUser = jiraDao.findUserByEmail(user.getExternalId());
+      }
+
     } else {
-      return jiraDao.findUserByEmail(user.getEmail());
+      // If user has no defined External ID, use his/her email to check for a Jira user
+      jiraUser = jiraDao.findUserByEmail(user.getEmail());
     }
+
+    return jiraUser;
   }
 }
