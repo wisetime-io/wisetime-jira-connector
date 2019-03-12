@@ -62,7 +62,7 @@ public class FakeEntities {
     return new User()
         .name(firstName + " " + lastName)
         .email(FAKER.internet().emailAddress(firstName))
-        .externalId(FAKER.internet().emailAddress(firstName + "." + lastName))
+        .externalId(firstName + "." + lastName)
         .businessRole(FAKER.company().profession())
         .experienceWeightingPercent(FAKER.random().nextInt(0, 100));
   }

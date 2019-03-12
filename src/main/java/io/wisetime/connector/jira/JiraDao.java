@@ -80,7 +80,7 @@ class JiraDao {
     );
     requiredTablesAndColumnsMap.put(
         "cwd_user",
-        ImmutableSet.of("user_name", "lower_email_address")
+        ImmutableSet.of("user_name", "lower_user_name", "lower_email_address")
     );
     requiredTablesAndColumnsMap.put(
         "worklog",
@@ -154,7 +154,14 @@ class JiraDao {
         .listResult(this::buildIssueFromResultSet);
   }
 
-  Optional<String> findUsername(final String email) {
+  boolean userExists(final String username) {
+    return query().select("SELECT user_name FROM cwd_user WHERE lower_user_name = :username")
+        .namedParam("username", username.toLowerCase()) // Username in Jira Login is not case sensitive
+        .firstResult(Mappers.singleString())
+        .isPresent();
+  }
+
+  Optional<String> findUsernameByEmail(final String email) {
     return query().select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
         .namedParam("email", email.toLowerCase())
         .firstResult(Mappers.singleString());

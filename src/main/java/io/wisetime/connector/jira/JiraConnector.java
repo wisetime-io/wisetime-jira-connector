@@ -8,6 +8,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,7 @@ import io.wisetime.connector.utils.DurationCalculator;
 import io.wisetime.generated.connect.Tag;
 import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.UpsertTagRequest;
+import io.wisetime.generated.connect.User;
 import spark.Request;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
@@ -51,6 +53,7 @@ import static io.wisetime.connector.utils.ActivityTimeCalculator.startTime;
 public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
+
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
 
   private ApiClient apiClient;
@@ -161,7 +164,7 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Cannot post time group with no time rows");
     }
 
-    final Optional<String> author = jiraDao.findUsername(timeGroup.getUser().getExternalId());
+    final Optional<String> author = getJiraUser(timeGroup.getUser());
     if (!author.isPresent()) {
       return PostResult.PERMANENT_FAILURE
           .withMessage("User does not exist in Jira");
@@ -262,5 +265,24 @@ public class JiraConnector implements WiseTimeConnector {
                 .map(String::trim)
                 .toArray(String[]::new)
         ).orElse(ArrayUtils.toArray());
+  }
+
+  private Optional<String> getJiraUser(User user) {
+    if (StringUtils.isNotBlank(user.getExternalId())) {
+      if (jiraDao.userExists(user.getExternalId())) {
+        // return External ID if it's the user's Login ID/Username in Jira
+        return Optional.of(user.getExternalId());
+
+      } else if (user.getExternalId().split("@").length == 2) {
+        // if External ID is not the Login ID but it looks like an email, try to find a user with that email
+        return jiraDao.findUsernameByEmail(user.getExternalId());
+      }
+
+    } else {
+      // If user has no defined External ID, use his/her email to check for a Jira user
+      return jiraDao.findUsernameByEmail(user.getEmail());
+    }
+
+    return Optional.empty();
   }
 }
