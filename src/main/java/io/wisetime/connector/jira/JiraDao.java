@@ -154,13 +154,14 @@ class JiraDao {
         .listResult(this::buildIssueFromResultSet);
   }
 
-  Optional<String> findUserByUsername(final String username) {
+  boolean userExists(final String username) {
     return query().select("SELECT user_name FROM cwd_user WHERE lower_user_name = :username")
-        .namedParam("username", username.toLowerCase())
-        .firstResult(Mappers.singleString());
+        .namedParam("username", username.toLowerCase()) // Username in Jira Login is not case sensitive
+        .firstResult(Mappers.singleString())
+        .isPresent();
   }
 
-  Optional<String> findUserByEmail(final String email) {
+  Optional<String> findUsernameByEmail(final String email) {
     return query().select("SELECT user_name FROM cwd_user WHERE lower_email_address = :email")
         .namedParam("email", email.toLowerCase())
         .firstResult(Mappers.singleString());

@@ -268,22 +268,21 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   private Optional<String> getJiraUser(User user) {
-    Optional<String> jiraUser;
-
     if (StringUtils.isNotBlank(user.getExternalId())) {
-      // Check if the External ID is the user's Login ID/Username in Jira
-      jiraUser = jiraDao.findUserByUsername(user.getExternalId());
+      if (jiraDao.userExists(user.getExternalId())) {
+        // return External ID if it's the user's Login ID/Username in Jira
+        return Optional.of(user.getExternalId());
 
-      // if External ID is not the Login ID but it looks like an email, try to find a user with that email
-      if (!jiraUser.isPresent() && user.getExternalId().split("@").length == 2) {
-        jiraUser = jiraDao.findUserByEmail(user.getExternalId());
+      } else if (user.getExternalId().split("@").length == 2) {
+        // if External ID is not the Login ID but it looks like an email, try to find a user with that email
+        return jiraDao.findUsernameByEmail(user.getExternalId());
       }
 
     } else {
       // If user has no defined External ID, use his/her email to check for a Jira user
-      jiraUser = jiraDao.findUserByEmail(user.getEmail());
+      return jiraDao.findUsernameByEmail(user.getEmail());
     }
 
-    return jiraUser;
+    return Optional.empty();
   }
 }
