@@ -128,7 +128,9 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
     log.info("Posted time received for {}: {}",
-        timeGroup.getUser().getExternalId(),
+        StringUtils.isNotBlank(timeGroup.getUser().getExternalId())
+            ? timeGroup.getUser().getExternalId()
+            : timeGroup.getUser().getEmail(),
         Base64.getEncoder().encodeToString(timeGroup.toString().getBytes()));
 
     Optional<String> callerKey = callerKey();
