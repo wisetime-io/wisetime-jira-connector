@@ -74,6 +74,7 @@ public class FakeEntities {
         .description(FAKER.superhero().descriptor())
         .durationSecs(FAKER.random().nextInt(120, 600))
         .submittedDate(Long.valueOf(FAKER.numerify("20180#1#1#5#2####")))
+        .firstObservedInHour(0)
         .modifier(FAKER.lorem().word())
         .source(randomEnum(TimeRow.SourceEnum.class));
   }
