@@ -30,6 +30,7 @@ The following configuration options are optional.
 | PROJECT_KEYS_FILTER   | If set, the connector will only handle Jira issues from the configured Jira project keys.                                                                                                                                  |
 | DATA_DIR              | If set, the connector will use the directory as the location for storing data to keep track on the Jira issues it has synced. By default, WiseTime Connector will create a temporary dir under `/tmp` as its data storage. |
 | TIMEZONE              | The timezone to use when posting time to Jira if the default timezone is not available in Jira's database, e.g. `Australia/Perth`. Defaults to `UTC`.                                                                      |
+| WEBHOOK_PORT          | If set, the connector will listen to this port e.g. 8090. Defaults to 8080.                                                                                                                                                |
 
 The connector needs to be able to read from the `project` and `jiraissue` tables, and write to the `worklog` and `sequence_value_item` tables of the Jira database.
 
