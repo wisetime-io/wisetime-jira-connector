@@ -291,8 +291,8 @@ class JiraDaoTest {
   @Test
   void createWorklog_withExistingWorklog() {
     // Specify timezone to use via Jira DB
-    final ZoneId sydneyTz = ZoneId.of("Australia/Sydney");
-    saveDefaultTimeZone(1, sydneyTz.getId());
+    final ZoneId perthTz = ZoneId.of("Australia/Perth");
+    saveDefaultTimeZone(1, perthTz.getId());
 
     // Create initial worklog
     final Worklog workLogUtc = RANDOM_DATA_GENERATOR.randomWorklog();
@@ -309,14 +309,14 @@ class JiraDaoTest {
     // Check the latest created worklog
     Worklog savedWorklog = getWorklog(currentWorkLogId.get() + 199).get();
 
-    Worklog expectedSavedWorkLog = convertWorkLogWithZone(anotherWorkLogUtc, sydneyTz);
+    Worklog expectedSavedWorkLog = convertWorkLogWithZone(anotherWorkLogUtc, perthTz);
 
     assertThat(savedWorklog) // we increment 199 to generate new worklog seq ID
         .as("Worklog should be saved with created time set in the timezone specified")
         .isEqualTo(expectedSavedWorkLog);
     assertThat(ChronoUnit.HOURS.between(anotherWorkLogUtc.getCreated(), expectedSavedWorkLog.getCreated()))
         .as("ensure that date are converted correctly")
-        .isEqualTo(11); // Sydney
+        .isEqualTo(8); // Perth
   }
 
   private Worklog convertWorkLogWithZone(Worklog workLogUtc, ZoneId perthTz) {
