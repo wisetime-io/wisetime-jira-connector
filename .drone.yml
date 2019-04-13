@@ -1,0 +1,73 @@
+kind: pipeline
+name: test-and-publish
+
+steps:
+  - name: fetch-tags
+    image: docker:git
+    commands:
+      - git fetch --tags
+    when:
+      branch:
+        - master
+
+  - name: unit-test
+    image: openjdk:8-jdk-slim
+    environment:
+      GRADLE_USER_HOME: /gradle/
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
+    volumes:
+      - name: gradle-wrappers
+        path: /gradle/wrapper
+      - name: gradle-modules-2
+        path: /gradle/caches/modules-2
+    commands:
+      - ./gradlew compileJava test check
+
+  - name: publish-to-s3
+    image: openjdk:8-jdk
+    environment:
+      GRADLE_USER_HOME: /gradle/
+      AWS_ACCESS_KEY_ID:
+        from_secret: aws-access-key-id
+      AWS_SECRET_KEY:
+        from_secret: aws-secret-key
+    volumes:
+      - name: gradle-wrappers
+        path: /gradle/wrapper
+      - name: gradle-modules-2
+        path: /gradle/caches/modules-2
+    commands:
+      - ./publish.sh
+    when:
+      branch:
+        include:
+          - master
+
+volumes:
+  # export CACHE_DIR=/tmp/gradle_wrappers ; sudo mkdir -p $CACHE_DIR && sudo chown $USER $CACHE_DIR && sudo chmod 777 $CACHE_DIR
+  - name: gradle-wrappers
+    host:
+      path: /tmp/gradle_wrappers
+  # export CACHE_DIR=/tmp/gradle-modules-2 ; sudo mkdir -p $CACHE_DIR && sudo chown $USER $CACHE_DIR && sudo chmod 777 $CACHE_DIR
+  - name: gradle-modules-2
+    host:
+      path: /tmp/gradle-modules-2
+
+---
+kind: pipeline
+name: mirror-to-github
+depends_on:
+  - test-and-publish
+
+steps:
+  - name: github-push
+    image: alpine/git
+    environment:
+      GITHUB_SSH_KEY:
+        from_secret: github-ssh-key
+    commands:
+      - ./mirror.sh
+    when:
+      branch:
+        include:
+          - master

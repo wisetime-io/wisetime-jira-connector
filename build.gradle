@@ -17,9 +17,11 @@ buildscript {
 plugins {
     id 'java'
     id 'application'
+    id "fr.brouillard.oss.gradle.jgitver" version "0.8.0"
+    id 'maven'
+    id 'maven-publish'
     id 'com.google.cloud.tools.jib' version '0.10.0'
     id 'com.github.kt3k.coveralls' version '2.8.2'
-    id 'maven'
     id 'net.ltgt.apt' version '0.19'
 }
 
@@ -111,4 +113,26 @@ test {
 
 clean {
     delete "${projectDir}/out"
+}
+
+jgitver {
+    autoIncrementPatch false
+}
+
+publishing {
+    repositories {
+        maven {
+            url 's3://artifacts.wisetime.com/mvn2/releases'
+            authentication {
+                awsIm(AwsImAuthentication)
+            }
+        }
+    }
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId 'wisetime-jira-connector'
+            // version is set via plugin
+            from components.java
+        }
+    }
 }
