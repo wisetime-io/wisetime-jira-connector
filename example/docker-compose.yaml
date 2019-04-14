@@ -1,0 +1,60 @@
+# Copyright (c) 2019 Practice Insight Pty Ltd. All rights reserved.
+#
+# Docker Compose manifest for running WiseTime Patricia Connector.
+#
+# To start the WiseTime Connector, run the following command in the same directory as
+# this docker-compose.yaml file:
+#
+#   docker-compose -p wisetime-jira-connector up -d
+#
+# To stop the WiseTime Connector, run the following command in the same directory:
+#
+#   docker-compose down
+#
+# This docker-compose.yaml file creates a local volume for persistence. To list the
+# volume:
+#
+#   docker volume ls
+#
+version: "3"
+services:
+  wisetime-patricia-connector:
+    labels:
+      description: WiseTime Jira Connector
+    image: wisetime/wisetime-jira-connector:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      API_KEY: YOUR_WISETIME_CONNECT_API_KEY
+      CALLER_KEY: PICK_A_SECRET
+
+      # define appropriate timezone
+      TIMEZONE: Australia/Perth
+
+      TAG_UPSERT_PATH: /Jira/
+      TAG_UPSERT_BATCH_SIZE: 500
+
+      # uncomment if default webhook port should be changed (also change docker ports definition above correspondingly!)
+      # WEBHOOK_PORT: 8080
+
+      # uncomment if tags from all Jira projects should be made available. Specify the list of projects for for which tags should be uploaded to the wisetime service
+      # PROJECT_KEYS_FILTER: <list_of_project_keys>
+
+      JIRA_JDBC_URL: "jdbc:mysql://HOST:PORT/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false"
+      JIRA_DB_USER: USERNAME
+      JIRA_DB_PASSWORD: PASSWORD
+
+      # AWS CloudWatch logging
+      AWS_ACCESS_KEY_ID: YOUR_AWS_ACCESS_KEY
+      AWS_SECRET_ACCESS_KEY: YOUR_AWS_SECRET_ACCESS_KEY
+      AWS_REGION: ap-southeast-1
+
+      # Local cache for keeping track of cases and projects that have been synced
+      DATA_DIR: /usr/local/wisetime-connector/data/
+
+    volumes:
+      - data:/usr/local/wisetime-connector/data/
+volumes:
+  data:
+    driver: local
