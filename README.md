@@ -48,7 +48,7 @@ docker run -d \
     -e JIRA_JDBC_URL="jdbc:mysql://host:port/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false" \
     -e JIRA_DB_USER=dbuser \
     -e JIRA_DB_PASSWORD=dbpass \
-    wisetime/jira-connector
+    wisetime/wisetime-jira-connector
 ```
 
 The Jira connector runs self-checks to determine whether it is healthy. If health check fails, the connector will shutdown. This gives us a chance to automatically re-initialise the application through the Docker restart policy.
