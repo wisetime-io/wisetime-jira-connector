@@ -42,6 +42,10 @@ services:
       # PROJECT_KEYS_FILTER: <list_of_project_keys>
 
       JIRA_JDBC_URL: "jdbc:mysql://HOST:PORT/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false"
+
+      # postgres database is not supported but has successfully been used with this connector using the following db string
+      # JIRA_JDBC_URL: "jdbc:postgresql://HOST:PORT/jira?useUnicode=true&characterEncoding=UTF8&stringtype=unspecified&useSSL=false"
+
       JIRA_DB_USER: USERNAME
       JIRA_DB_PASSWORD: PASSWORD
 
