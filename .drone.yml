@@ -1,7 +1,18 @@
+---
 kind: pipeline
 name: test-and-publish
 
 steps:
+  - name: check-cache-dir
+    image: alpine:latest
+    commands:
+      - echo ${DRONE_MACHINE}
+      - mkdir -p /tmp/gradle/wrapper
+      - mkdir -p /tmp/gradle/cache/modules-2
+    volumes:
+      - name: host-tmp
+        path: /tmp
+
   - name: fetch-tags
     image: docker:git
     commands:
@@ -21,7 +32,7 @@ steps:
       - name: gradle-modules-2
         path: /gradle/caches/modules-2
     commands:
-      # TODO: Enable checkstyle
+      # TODO(GB): Enable checkstyle
       #- ./gradlew compileJava test check
       - ./gradlew compileJava test
 
@@ -29,31 +40,37 @@ steps:
     image: openjdk:8-jdk
     environment:
       GRADLE_USER_HOME: /gradle/
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
       AWS_ACCESS_KEY_ID:
-        from_secret: aws-access-key-id
-      AWS_SECRET_KEY:
-        from_secret: aws-secret-key
+        from_secret: aws-publish-id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: aws-publish-secret
     volumes:
       - name: gradle-wrappers
         path: /gradle/wrapper
       - name: gradle-modules-2
         path: /gradle/caches/modules-2
     commands:
-      - ./publish.sh
+      - ./gradlew --info publish -x check -x test
     when:
       branch:
         include:
           - master
 
 volumes:
-  # export CACHE_DIR=/tmp/gradle_wrappers ; sudo mkdir -p $CACHE_DIR && sudo chown $USER $CACHE_DIR && sudo chmod 777 $CACHE_DIR
-  - name: gradle-wrappers
+  - name: host-tmp
     host:
-      path: /tmp/gradle_wrappers
-  # export CACHE_DIR=/tmp/gradle-modules-2 ; sudo mkdir -p $CACHE_DIR && sudo chown $USER $CACHE_DIR && sudo chmod 777 $CACHE_DIR
+      path: /tmp
+  - name: gradle-wrapper
+    host:
+      path: /tmp/gradle/wrapper
   - name: gradle-modules-2
     host:
-      path: /tmp/gradle-modules-2
+      path: /tmp/gradle/cache/modules-2
+
+trigger:
+  event:
+    - push
 
 ---
 kind: pipeline
@@ -73,3 +90,21 @@ steps:
       branch:
         include:
           - master
+
+trigger:
+  event:
+    - push
+
+---
+kind: secret
+name: aws-publish-id
+get:
+  path: drone/publish/s3
+  name: aws-publish-id
+
+---
+kind: secret
+name: aws-publish-secret
+get:
+  path: drone/publish/s3
+  name: aws-publish-secret
