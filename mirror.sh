@@ -10,7 +10,7 @@ else
       ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts && \
     # Prepare our GitHub private key
       mkdir -p /tmp/.ssh && \
-      echo "$GITHUB_SSH_KEY" > /tmp/.ssh/github.key && \
+    echo "${GITHUB_SSH_KEY_B64}" | base64 -d > /tmp/.ssh/github.key
       chmod 600 /tmp/.ssh/github.key && \
     # Push to GitHub mirror
       git remote set-url origin git@github.com:wisetime-io/wisetime-jira-connector.git && \

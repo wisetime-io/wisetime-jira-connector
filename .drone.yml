@@ -82,8 +82,8 @@ steps:
   - name: github-push
     image: alpine/git
     environment:
-      GITHUB_SSH_KEY:
-        from_secret: github-ssh-key
+      GITHUB_SSH_KEY_B64:
+        from_secret: github-ssh-key-b64
     commands:
       - ./mirror.sh
     when:
@@ -108,3 +108,10 @@ name: aws-publish-secret
 get:
   path: drone/publish/s3
   name: aws-publish-secret
+
+---
+kind: secret
+name: github-ssh-key-b64
+get:
+  path: drone/publish/github
+  name: github-ssh-key-b64
