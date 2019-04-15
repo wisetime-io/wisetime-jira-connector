@@ -113,5 +113,5 @@ get:
 kind: secret
 name: github-ssh-key-b64
 get:
-  path: drone/publish/github
-  name: github-ssh-key-b64
+  path: drone/publish/github/inpro-jira
+  name: gh-jira-key-b64

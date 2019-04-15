@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [[ -z "${GITHUB_SSH_KEY}" ]]
+if [[ -z "${GITHUB_SSH_KEY_B64}" ]]
 then
     # Will also be absent if we're not on master branch
     echo "\$GITHUB_SSH_KEY is empty, skipping (mirror)"
