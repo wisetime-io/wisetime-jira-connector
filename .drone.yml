@@ -2,12 +2,6 @@
 kind: pipeline
 name: test-and-publish
 
-clone:
-  git:
-    image: plugins/git
-    # include tags when cloning for version calc
-    tags: true
-
 steps:
   - name: check-cache-dir
     image: alpine:latest
@@ -18,6 +12,14 @@ steps:
     volumes:
       - name: host-tmp
         path: /tmp
+
+  - name: fetch-tags
+    image: docker:git
+    commands:
+      - git fetch --tags
+    when:
+      branch:
+        - master
 
   - name: unit-test
     image: openjdk:8-jdk-slim
