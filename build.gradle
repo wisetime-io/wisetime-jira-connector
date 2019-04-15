@@ -33,7 +33,6 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 group = 'io.wisetime'
 archivesBaseName = 'wisetime-jira-connector'
-version = '1.0-SNAPSHOT'
 mainClassName = 'io.wisetime.connector.jira.ConnectorLauncher'
 
 jib {
