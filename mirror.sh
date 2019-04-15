@@ -5,6 +5,7 @@ then
     # Will also be absent if we're not on master branch
     echo "\$GITHUB_SSH_KEY is empty, skipping (mirror)"
 else
+    git fetch --tags
     # Ensure we can talk to GitHub
     mkdir -p ~/.ssh && \
     ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts && \
