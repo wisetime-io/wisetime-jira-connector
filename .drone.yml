@@ -32,9 +32,7 @@ steps:
       - name: gradle-modules-2
         path: /gradle/caches/modules-2
     commands:
-      # TODO(GB): Enable checkstyle
-      #- ./gradlew compileJava test check
-      - ./gradlew compileJava test
+      - ./gradlew test check
 
   - name: publish-to-s3
     image: openjdk:8-jdk
