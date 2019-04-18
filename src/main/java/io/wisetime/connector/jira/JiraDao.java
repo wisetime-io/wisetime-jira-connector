@@ -245,12 +245,14 @@ class JiraDao {
   }
 
   private Issue buildIssueFromResultSet(final ResultSet resultSet) throws SQLException {
+    // Important to keep the order of the of the columns in the SELECT statement
+    // unfortunately getting them by name is handled differently in MySQL and pg jdbc drivers
     return Issue.builder()
-        .id(resultSet.getLong("jiraissue.id"))
-        .projectKey(resultSet.getString("project.pkey"))
-        .issueNumber(resultSet.getString("jiraissue.issuenum"))
-        .summary(resultSet.getString("jiraissue.summary"))
-        .timeSpent(resultSet.getLong("jiraissue.timespent"))
+        .id(resultSet.getLong(1))
+        .projectKey(resultSet.getString(2))
+        .issueNumber(resultSet.getString(3))
+        .summary(resultSet.getString(4))
+        .timeSpent(resultSet.getLong(5))
         .build();
   }
 

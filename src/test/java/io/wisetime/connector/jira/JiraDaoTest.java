@@ -362,7 +362,7 @@ class JiraDaoTest {
             .issueId(resultSet.getLong(1))
             .author(resultSet.getString(2))
             .timeWorked(resultSet.getLong(3))
-            .created(LocalDateTime.parse(resultSet.getString(4), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+            .created(LocalDateTime.parse(resultSet.getString(4), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[x]")))
             .body(resultSet.getString(5))
             .build()
         );
