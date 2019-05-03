@@ -23,9 +23,11 @@ services:
       description: WiseTime Jira Connector
     image: wisetime/wisetime-jira-connector:latest
     restart: always
+
     # uncomment the ports: definition if the connector should work in webhook mode.
     # ports:
     #  - "8080:8080"
+
     environment:
       API_KEY: YOUR_WISETIME_CONNECT_API_KEY
 
