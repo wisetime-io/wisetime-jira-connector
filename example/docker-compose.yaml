@@ -30,6 +30,9 @@ services:
 
     environment:
       API_KEY: YOUR_WISETIME_CONNECT_API_KEY
+	  
+	  # Set loglevel if other than default - INFO - required
+	  # LOGLEVEL: DEBUG
 
       # define appropriate timezone
       TIMEZONE: Australia/Perth
