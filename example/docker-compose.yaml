@@ -28,7 +28,6 @@ services:
     #  - "8080:8080"
     environment:
       API_KEY: YOUR_WISETIME_CONNECT_API_KEY
-      CALLER_KEY: PICK_A_SECRET
 
       # define appropriate timezone
       TIMEZONE: Australia/Perth
