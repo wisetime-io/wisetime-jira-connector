@@ -35,8 +35,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import javax.sql.DataSource;
-
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
