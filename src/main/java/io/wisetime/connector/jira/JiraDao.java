@@ -10,6 +10,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 
+import com.zaxxer.hikari.HikariDataSource;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.codejargon.fluentjdbc.api.FluentJdbc;
@@ -33,8 +35,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import javax.sql.DataSource;
-
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
@@ -57,7 +57,7 @@ class JiraDao {
   private final FluentJdbc fluentJdbc;
 
   @Inject
-  JiraDao(DataSource dataSource) {
+  JiraDao(HikariDataSource dataSource) {
     fluentJdbc = new FluentJdbcBuilder().connectionProvider(dataSource).build();
     dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   }
