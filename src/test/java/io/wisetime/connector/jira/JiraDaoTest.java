@@ -13,6 +13,7 @@ import com.google.inject.Injector;
 import com.google.inject.Provider;
 
 import com.github.javafaker.Faker;
+import com.zaxxer.hikari.HikariDataSource;
 
 import org.codejargon.fluentjdbc.api.FluentJdbc;
 import org.codejargon.fluentjdbc.api.FluentJdbcBuilder;
@@ -68,7 +69,7 @@ class JiraDaoTest {
     );
 
     jiraDao = injector.getInstance(JiraDao.class);
-    fluentJdbc = new FluentJdbcBuilder().connectionProvider(injector.getInstance(DataSource.class)).build();
+    fluentJdbc = new FluentJdbcBuilder().connectionProvider(injector.getInstance(HikariDataSource.class)).build();
 
     // Apply Jira DB schema to test db
     injector.getInstance(Flyway.class).migrate();
@@ -394,7 +395,7 @@ class JiraDaoTest {
     private static class FlywayJiraProvider implements Provider<Flyway> {
 
       @Inject
-      private Provider<DataSource> dataSourceProvider;
+      private Provider<HikariDataSource> dataSourceProvider;
 
       @Override
       public Flyway get() {
