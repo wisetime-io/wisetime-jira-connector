@@ -7,8 +7,6 @@ package io.wisetime.connector.jira;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-import com.zaxxer.hikari.HikariDataSource;
-
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -64,9 +62,6 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Inject
   private JiraDao jiraDao;
-
-  @Inject
-  private HikariDataSource dataSource;
 
   @Override
   public void init(final ConnectorModule connectorModule) {
@@ -294,6 +289,6 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public void shutdown() {
-    dataSource.close();
+    jiraDao.shutdown();
   }
 }

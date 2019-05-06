@@ -55,9 +55,11 @@ class JiraDao {
   private final Logger log = LoggerFactory.getLogger(JiraDao.class);
   private final DateTimeFormatter dateTimeFormatter;
   private final FluentJdbc fluentJdbc;
+  private final HikariDataSource dataSource;
 
   @Inject
   JiraDao(HikariDataSource dataSource) {
+    this.dataSource = dataSource;
     fluentJdbc = new FluentJdbcBuilder().connectionProvider(dataSource).build();
     dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   }
@@ -258,6 +260,10 @@ class JiraDao {
 
   private Query query() {
     return fluentJdbc.query();
+  }
+
+  void shutdown() {
+    dataSource.close();
   }
 
   /**
