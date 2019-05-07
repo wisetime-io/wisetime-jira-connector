@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
-import io.wisetime.connector.ServerRunner;
+import io.wisetime.connector.Connector;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.config.RuntimeConfigKey;
 
@@ -29,10 +29,10 @@ import io.wisetime.connector.config.RuntimeConfigKey;
 public class ConnectorLauncher {
 
   public static void main(final String... args) throws Exception {
-    ServerRunner.createServerBuilder()
+    Connector.builder()
         .withWiseTimeConnector(Guice.createInjector(new JiraDbModule()).getInstance(JiraConnector.class))
         .build()
-        .startServer();
+        .start();
   }
 
   /**
