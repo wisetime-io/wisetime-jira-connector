@@ -23,11 +23,16 @@ services:
       description: WiseTime Jira Connector
     image: wisetime/wisetime-jira-connector:latest
     restart: always
-    ports:
-      - "8080:8080"
+
+    # uncomment the ports: definition if the connector should work in webhook mode.
+    # ports:
+    #  - "8080:8080"
+
     environment:
       API_KEY: YOUR_WISETIME_CONNECT_API_KEY
-      CALLER_KEY: PICK_A_SECRET
+	  
+	  # Set loglevel if other than default - INFO - required
+	  # LOGLEVEL: DEBUG
 
       # define appropriate timezone
       TIMEZONE: Australia/Perth
@@ -35,7 +40,11 @@ services:
       TAG_UPSERT_PATH: /Jira/
       TAG_UPSERT_BATCH_SIZE: 500
 
-      # uncomment if default webhook port should be changed (also change docker ports definition above correspondingly!)
+      # uncomment the following - as well as the above docker ports: definition - if the connector
+      # should work in webhook mode. If the connector should work using other than the default
+      # port, please adapt the docker ports: definition in line with the WEBHOOK_PORT variable.
+      # CONNECTOR_MODE: WEBHOOK
+      # CALLER_KEY: PICK_A_SECRET
       # WEBHOOK_PORT: 8080
 
       # uncomment if tags from all Jira projects should be made available. Specify the list of projects for for which tags should be uploaded to the wisetime service
