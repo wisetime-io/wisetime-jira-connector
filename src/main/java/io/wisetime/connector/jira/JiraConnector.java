@@ -207,20 +207,20 @@ public class JiraConnector implements WiseTimeConnector {
     };
 
     try {
-      jiraDao.asTransaction(() ->
-          relevantTags
-              .stream()
-              .map(findIssue)
-              .filter(Optional::isPresent)
-              .map(Optional::get)
+      jiraDao.asTransaction(() -> {
+        // make sure to at least ping the DB once, so the connection autoCommit is set to false by fluentJdbc
+        jiraDao.canQueryDb();
+        relevantTags
+            .stream()
+            .map(findIssue)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
 
-              .map(updateIssueTimeSpent)
-              .map(createWorklog)
+            .map(updateIssueTimeSpent)
+            .map(createWorklog)
 
-              .forEach(issue ->
-                  log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get())
-              )
-      );
+            .forEach(issue -> log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get()));
+      });
     } catch (RuntimeException e) {
       return PostResult.TRANSIENT_FAILURE
           .withError(e)
