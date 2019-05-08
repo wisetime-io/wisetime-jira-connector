@@ -21,6 +21,15 @@ steps:
       - name: host-cache
         path: /cache
 
+  - name: unit-test
+    image: openjdk:8-jdk-slim
+    environment:
+      GRADLE_USER_HOME: .gcache
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
+    commands:
+      - echo $${DRONE_MACHINE}
+      - ./gradlew test check
+
   - name: check-versions
     image: openjdk:8-jdk
     environment:
@@ -34,15 +43,6 @@ steps:
           - master
       event:
         - push
-
-  - name: unit-test
-    image: openjdk:8-jdk-slim
-    environment:
-      GRADLE_USER_HOME: .gcache
-      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
-    commands:
-      - echo $${DRONE_MACHINE}
-      - ./gradlew test check
 
   - name: save-cache
     image: drillster/drone-volume-cache
@@ -68,9 +68,9 @@ steps:
     commands:
       - ./gradlew --info publish -x check -x test
     when:
-      branch:
-        include:
-          - master
+      ref:
+        - refs/heads/master
+        - refs/tags/*
 
 volumes:
   - name: host-cache
@@ -81,6 +81,7 @@ volumes:
 trigger:
   event:
     - push
+    - tag
 
 ---
 kind: pipeline
@@ -97,13 +98,14 @@ steps:
     commands:
       - ./mirror.sh
     when:
-      branch:
-        include:
-          - master
+      ref:
+        - refs/heads/master
+        - refs/tags/*
 
 trigger:
   event:
     - push
+    - tag
 
 ---
 kind: secret

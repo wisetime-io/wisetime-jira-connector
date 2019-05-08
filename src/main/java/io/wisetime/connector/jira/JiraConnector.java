@@ -286,4 +286,9 @@ public class JiraConnector implements WiseTimeConnector {
 
     return Optional.empty();
   }
+
+  @Override
+  public void shutdown() {
+    jiraDao.shutdown();
+  }
 }
