@@ -5,5 +5,3 @@
   |${timeRow.getActivity()}|${timeRow.getDescription()!"N/A"}|
  </#list>
 </#if>
-
-Applied experience weighting: ${getUser().getExperienceWeightingPercent()}%
