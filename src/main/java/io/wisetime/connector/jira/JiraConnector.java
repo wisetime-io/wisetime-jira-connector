@@ -207,20 +207,26 @@ public class JiraConnector implements WiseTimeConnector {
     };
 
     try {
-      jiraDao.asTransaction(() ->
-          relevantTags
-              .stream()
-              .map(findIssue)
-              .filter(Optional::isPresent)
-              .map(Optional::get)
+      jiraDao.asTransaction(() -> {
+        final List<Issue> postedIssues = relevantTags
+            .stream()
+            .map(findIssue)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
 
-              .map(updateIssueTimeSpent)
-              .map(createWorklog)
+            .map(updateIssueTimeSpent)
+            .map(createWorklog)
+            .collect(Collectors.toList());
 
-              .forEach(issue ->
-                  log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get())
-              )
-      );
+        // No issues to be posted, so db might not have been pinged yet
+        if (postedIssues.isEmpty()) {
+          // make sure to at least ping the DB once, so the connection autoCommit is set to false by fluentJdbc
+          jiraDao.pingDb();
+        }
+
+        postedIssues
+            .forEach(issue -> log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get()));
+      });
     } catch (RuntimeException e) {
       return PostResult.TRANSIENT_FAILURE
           .withError(e)
@@ -231,7 +237,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDao.canQueryDb();
+    return jiraDao.pingDb();
   }
 
   private int tagUpsertBatchSize() {

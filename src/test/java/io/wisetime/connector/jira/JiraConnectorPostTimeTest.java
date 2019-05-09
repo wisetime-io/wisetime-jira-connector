@@ -267,11 +267,16 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_cant_find_issue() {
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
     when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
 
-    assertThat(connector.postTime(fakeRequest(), fakeEntities.randomTimeGroup()))
-        .isEqualTo(PostResult.PERMANENT_FAILURE)
-        .as("Can't post time because tag doesn't match any issue in Jira");
+    when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup))
+        .isEqualTo(PostResult.SUCCESS);
+
+    // verify we at least pinged the db once
+    verify(jiraDaoMock, times(1)).pingDb();
 
     verifyJiraNotUpdated();
   }

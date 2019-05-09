@@ -115,7 +115,12 @@ class JiraDao {
         );
   }
 
-  boolean canQueryDb() {
+  /**
+   * Low cost query to check if we can query the db.
+   *
+   * @return true, if the db is reachable
+   */
+  boolean pingDb() {
     try {
       query().select("SELECT 1 from jiraissue").firstResult(Mappers.singleInteger());
       return true;
