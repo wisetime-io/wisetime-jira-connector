@@ -221,7 +221,7 @@ public class JiraConnector implements WiseTimeConnector {
         // No issues to be posted, so db might not have been pinged yet
         if (postedIssues.isEmpty()) {
           // make sure to at least ping the DB once, so the connection autoCommit is set to false by fluentJdbc
-          jiraDao.canQueryDb();
+          jiraDao.pingDb();
         }
 
         postedIssues
@@ -237,7 +237,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Override
   public boolean isConnectorHealthy() {
-    return jiraDao.canQueryDb();
+    return jiraDao.pingDb();
   }
 
   private int tagUpsertBatchSize() {

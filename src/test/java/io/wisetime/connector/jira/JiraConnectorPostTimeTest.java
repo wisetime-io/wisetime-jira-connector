@@ -276,7 +276,7 @@ class JiraConnectorPostTimeTest {
         .isEqualTo(PostResult.SUCCESS);
 
     // verify we at least pinged the db once
-    verify(jiraDaoMock, times(1)).canQueryDb();
+    verify(jiraDaoMock, times(1)).pingDb();
 
     verifyJiraNotUpdated();
   }

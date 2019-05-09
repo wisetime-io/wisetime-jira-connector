@@ -103,7 +103,7 @@ class JiraDaoTest {
     // Will throw an exception if the select query is not executed with the same query object that started the transaction
     // because of internal working of fluent jdbc
     jiraDao.asTransaction(() -> {
-      jiraDao.canQueryDb();
+      jiraDao.pingDb();
       jiraDao.findIssueByTagName("Not a jira tag");
     });
   }
@@ -141,8 +141,8 @@ class JiraDaoTest {
   }
 
   @Test
-  void canQueryDb() {
-    assertThat(jiraDao.canQueryDb())
+  void pingDb() {
+    assertThat(jiraDao.pingDb())
         .as("DB should be accessible")
         .isTrue();
   }
