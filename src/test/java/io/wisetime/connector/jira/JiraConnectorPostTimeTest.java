@@ -455,8 +455,7 @@ class JiraConnectorPostTimeTest {
         .as("The diary body should be set to the output of the template formatter")
         .startsWith(timeGroup.getDescription())
         .contains("|" + timeRow1.getActivity() + "|" + timeRow1.getDescription() + "|")
-        .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|")
-        .endsWith("Applied experience weighting: 50%");
+        .contains("|" + timeRow2.getActivity() + "|" + timeRow2.getDescription() + "|");
     assertThat(createdWorklogs.get(0).getBody())
         .as("should have the same worklog body to other Jira issue")
         .isEqualTo(createdWorklogs.get(1).getBody());
@@ -493,8 +492,7 @@ class JiraConnectorPostTimeTest {
         .as("The diary body should be set to the output of the template formatter")
         .startsWith(timeGroup.getDescription())
         .doesNotContain(timeRow1.getActivity(), timeRow1.getDescription())
-        .doesNotContain(timeRow2.getActivity(), timeRow2.getDescription())
-        .endsWith("Applied experience weighting: 80%");
+        .doesNotContain(timeRow2.getActivity(), timeRow2.getDescription());
     assertThat(createdWorklogs.get(0).getBody())
         .as("should have the same worklog body to other Jira issue")
         .isEqualTo(createdWorklogs.get(1).getBody());
