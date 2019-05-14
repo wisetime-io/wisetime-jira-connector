@@ -228,6 +228,7 @@ public class JiraConnector implements WiseTimeConnector {
             .forEach(issue -> log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get()));
       });
     } catch (RuntimeException e) {
+      log.warn("There was an error posting time to the Jira database", e);
       return PostResult.TRANSIENT_FAILURE()
           .withError(e)
           .withMessage("There was an error posting time to the Jira database");
