@@ -135,12 +135,12 @@ public class JiraConnector implements WiseTimeConnector {
 
     Optional<String> callerKey = callerKey();
     if (callerKey.isPresent() && !callerKey.get().equals(timeGroup.getCallerKey())) {
-      return PostResult.PERMANENT_FAILURE
+      return PostResult.PERMANENT_FAILURE()
           .withMessage("Invalid caller key in post time webhook call");
     }
 
     if (timeGroup.getTags().isEmpty()) {
-      return PostResult.SUCCESS
+      return PostResult.SUCCESS()
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
@@ -156,19 +156,19 @@ public class JiraConnector implements WiseTimeConnector {
 
     final List<Tag> relevantTags = timeGroup.getTags().stream().filter(relevantProjectKey).collect(Collectors.toList());
     if (relevantTags.isEmpty()) {
-      return PostResult.SUCCESS
+      return PostResult.SUCCESS()
           .withMessage("Time group has no tags matching specified project keys filter. There is nothing to post to Jira.");
     }
 
     final Optional<LocalDateTime> activityStartTime = startTime(timeGroup);
     if (!activityStartTime.isPresent()) {
-      return PostResult.PERMANENT_FAILURE
+      return PostResult.PERMANENT_FAILURE()
           .withMessage("Cannot post time group with no time rows");
     }
 
     final Optional<String> author = getJiraUser(timeGroup.getUser());
     if (!author.isPresent()) {
-      return PostResult.PERMANENT_FAILURE
+      return PostResult.PERMANENT_FAILURE()
           .withMessage("User does not exist in Jira");
     }
 
@@ -228,11 +228,11 @@ public class JiraConnector implements WiseTimeConnector {
             .forEach(issue -> log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get()));
       });
     } catch (RuntimeException e) {
-      return PostResult.TRANSIENT_FAILURE
+      return PostResult.TRANSIENT_FAILURE()
           .withError(e)
           .withMessage("There was an error posting time to the Jira database");
     }
-    return PostResult.SUCCESS;
+    return PostResult.SUCCESS();
   }
 
   @Override

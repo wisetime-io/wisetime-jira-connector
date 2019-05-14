@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.api_client.PostResult.PostResultStatus;
 import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
@@ -87,8 +88,8 @@ class JiraConnectorPostTimeTest {
   void postTime_without_tags_should_succeed() {
     final TimeGroup groupWithNoTags = fakeEntities.randomTimeGroup().tags(ImmutableList.of());
 
-    assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
-        .isEqualTo(PostResult.SUCCESS)
+    assertThat(connector.postTime(fakeRequest(), groupWithNoTags).getStatus())
+        .isEqualTo(PostResultStatus.SUCCESS)
         .as("There is nothing to post to Jira");
 
     verifyJiraNotUpdated();
@@ -103,8 +104,8 @@ class JiraConnectorPostTimeTest {
         .callerKey("wrong-key")
         .tags(ImmutableList.of());
 
-    assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
-        .isEqualTo(PostResult.PERMANENT_FAILURE)
+    assertThat(connector.postTime(fakeRequest(), groupWithNoTags).getStatus())
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE)
         .as("Invalid caller key should result in post failure");
 
     verifyJiraNotUpdated();
@@ -119,8 +120,8 @@ class JiraConnectorPostTimeTest {
         .callerKey("caller-key")
         .tags(ImmutableList.of());
 
-    assertThat(connector.postTime(fakeRequest(), groupWithNoTags))
-        .isEqualTo(PostResult.SUCCESS)
+    assertThat(connector.postTime(fakeRequest(), groupWithNoTags).getStatus())
+        .isEqualTo(PostResultStatus.SUCCESS)
         .as("Posting time with valid caller key should succeed");
 
     verifyJiraNotUpdated();
@@ -130,8 +131,8 @@ class JiraConnectorPostTimeTest {
   void postTime_without_time_rows_should_fail() {
     final TimeGroup groupWithNoTimeRows = fakeEntities.randomTimeGroup().timeRows(ImmutableList.of());
 
-    assertThat(connector.postTime(fakeRequest(), groupWithNoTimeRows))
-        .isEqualTo(PostResult.PERMANENT_FAILURE)
+    assertThat(connector.postTime(fakeRequest(), groupWithNoTimeRows).getStatus())
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE)
         .as("Group with no time is invalid");
 
     verifyJiraNotUpdated();
@@ -148,9 +149,9 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.userExists(externalId)).thenReturn(false);
 
     PostResult result = connector.postTime(fakeRequest(), timeGroup);
-    assertThat(result)
+    assertThat(result.getStatus())
         .as("Can't post time because external id is not a valid Jira username")
-        .isEqualTo(PostResult.PERMANENT_FAILURE);
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
     assertThat(result.getMessage())
         .as("should be the correct error message for invalid user")
         .contains("User does not exist in Jira");
@@ -171,9 +172,9 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.findUsernameByEmail(externalId)).thenReturn(Optional.empty());
 
     PostResult result = connector.postTime(fakeRequest(), timeGroup);
-    assertThat(result)
+    assertThat(result.getStatus())
         .as("Can't post time because external id is not a valid Jira username or email")
-        .isEqualTo(PostResult.PERMANENT_FAILURE);
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
     assertThat(result.getMessage())
         .as("should be the correct error message for invalid user")
         .contains("User does not exist in Jira");
@@ -191,9 +192,9 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.findUsernameByEmail(timeGroup.getUser().getEmail())).thenReturn(Optional.empty());
 
     PostResult result = connector.postTime(fakeRequest(), timeGroup);
-    assertThat(result)
+    assertThat(result.getStatus())
         .as("Can't post time because no user has this email in Jira")
-        .isEqualTo(PostResult.PERMANENT_FAILURE);
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
     assertThat(result.getMessage())
         .as("should be the correct error message for invalid user")
         .contains("User does not exist in Jira");
@@ -210,9 +211,9 @@ class JiraConnectorPostTimeTest {
     setTimeGroupTagAsValidJiraIssues(timeGroup);
     when(jiraDaoMock.userExists(externalId)).thenReturn(true);
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     final ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
     verify(jiraDaoMock, times(timeGroup.getTags().size())).createWorklog(worklogCaptor.capture());
@@ -232,9 +233,9 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.userExists(externalId)).thenReturn(false);
     when(jiraDaoMock.findUsernameByEmail(externalId)).thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     final ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
     verify(jiraDaoMock, times(timeGroup.getTags().size())).createWorklog(worklogCaptor.capture());
@@ -252,9 +253,9 @@ class JiraConnectorPostTimeTest {
     setTimeGroupTagAsValidJiraIssues(timeGroup);
     when(jiraDaoMock.findUsernameByEmail(timeGroup.getUser().getEmail())).thenReturn(Optional.of(jiraUserName));
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     final ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
     verify(jiraDaoMock, times(timeGroup.getTags().size())).createWorklog(worklogCaptor.capture());
@@ -272,8 +273,8 @@ class JiraConnectorPostTimeTest {
 
     when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
-        .isEqualTo(PostResult.SUCCESS);
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     // verify we at least pinged the db once
     verify(jiraDaoMock, times(1)).pingDb();
@@ -295,9 +296,9 @@ class JiraConnectorPostTimeTest {
 
     final PostResult result = connector.postTime(fakeRequest(), timeGroup);
 
-    assertThat(result)
+    assertThat(result.getStatus())
         .as("Database transaction error while posting time should result in transient failure")
-        .isEqualTo(PostResult.TRANSIENT_FAILURE);
+        .isEqualTo(PostResultStatus.TRANSIENT_FAILURE);
 
     assertThat(result.getError().get())
         .as("Post result should contain the cause of the error")
@@ -333,9 +334,9 @@ class JiraConnectorPostTimeTest {
         // Last tag has no matching Jira issue
         .thenReturn(Optional.empty());
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     // Verify worklog creation
     ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
@@ -417,9 +418,9 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.findUsernameByEmail(anyString()))
         .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("There is nothing to post to Jira")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     verifyJiraNotUpdated();
   }
@@ -442,9 +443,9 @@ class JiraConnectorPostTimeTest {
         .narrativeType(TimeGroup.NarrativeTypeEnum.AND_TIME_ROW_ACTIVITY_DESCRIPTIONS);
     setPrerequisitesForSuccessfulPostTime(timeGroup);
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     // Verify worklog creation
     ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
@@ -479,9 +480,9 @@ class JiraConnectorPostTimeTest {
         .narrativeType(TimeGroup.NarrativeTypeEnum.ONLY);
     setPrerequisitesForSuccessfulPostTime(timeGroup);
 
-    assertThat(connector.postTime(fakeRequest(), timeGroup))
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("Valid time group should be posted successfully")
-        .isEqualTo(PostResult.SUCCESS);
+        .isEqualTo(PostResultStatus.SUCCESS);
 
     // Verify worklog creation
     ArgumentCaptor<Worklog> worklogCaptor = ArgumentCaptor.forClass(Worklog.class);
