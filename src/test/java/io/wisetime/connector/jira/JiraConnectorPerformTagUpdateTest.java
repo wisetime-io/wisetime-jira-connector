@@ -17,11 +17,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+import io.wisetime.connector.ConnectorModule;
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
-import io.wisetime.connector.integrate.ConnectorModule;
 import io.wisetime.generated.connect.UpsertTagRequest;
 
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
