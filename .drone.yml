@@ -80,7 +80,7 @@ steps:
       BAMBOO_PASS:
         from_secret: bamboo-pass
     commands:
-      - echo "Caccade to artifact via user $${BAMBOO_USER}"
+      - echo "Cascade to artifact via user $${BAMBOO_USER}"
       - ./bin/cascade.sh
     when:
       ref:
