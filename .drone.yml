@@ -72,6 +72,21 @@ steps:
         - refs/heads/master
         - refs/tags/*
 
+  - name: cascade-to-bamboo
+    image: quay.io/wt-build-support/alpine-git-bash
+    environment:
+      BAMBOO_USER:
+        from_secret: bamboo-user
+      BAMBOO_PASS:
+        from_secret: bamboo-pass
+    commands:
+      - echo "Caccade to artifact via user $${BAMBOO_USER}"
+      - ./bin/cascade.sh
+    when:
+      ref:
+        - refs/heads/master
+        - refs/tags/*
+
 volumes:
   - name: host-cache
     host:
@@ -127,3 +142,17 @@ name: github-ssh-key-b64
 get:
   path: drone/publish/github/inpro-jira
   name: gh-jira-key-b64
+
+---
+kind: secret
+name: bamboo-user
+get:
+  path: drone/bamboo/trigger
+  name: bamboo-user
+
+---
+kind: secret
+name: bamboo-pass
+get:
+  path: drone/bamboo/trigger
+  name: bamboo-pass
