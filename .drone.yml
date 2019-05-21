@@ -106,7 +106,7 @@ depends_on:
 
 steps:
   - name: github-push
-    image: alpine/git
+    image: quay.io/wt-build-support/alpine-git-bash
     environment:
       GITHUB_SSH_KEY_B64:
         from_secret: github-ssh-key-b64
