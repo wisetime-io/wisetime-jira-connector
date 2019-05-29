@@ -45,8 +45,21 @@ archivesBaseName = 'wisetime-jira-connector'
 mainClassName = 'io.wisetime.connector.jira.ConnectorLauncher'
 
 jib {
-    to {
-        image = "wisetime/wisetime-jira-connector"
+    def targetArch = project.hasProperty('targetArch') ? project.targetArch : ''
+
+    if (targetArch == 'arm64v8') {
+        println 'building image with architecture: arm64v8'
+        from {
+            image = "arm64v8/openjdk:8-alpine"
+        }
+        to {
+            image = "wisetime/wisetime-jira-connector-arm64v8"
+        }
+    } else {
+        println 'building image with (default) architecture: amd64'
+        to {
+            image = "wisetime/wisetime-jira-connector"
+        }
     }
 }
 
