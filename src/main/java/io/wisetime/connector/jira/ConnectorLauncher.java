@@ -4,16 +4,20 @@
 
 package io.wisetime.connector.jira;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.wisetime.connector.ConnectorController;
 import io.wisetime.connector.config.RuntimeConfig;
@@ -68,6 +72,7 @@ public class ConnectorLauncher {
    * Bind the Jira database connection via DI.
    */
   public static class JiraDbModule extends AbstractModule {
+
     private static final Logger log = LoggerFactory.getLogger(JiraDbModule.class);
 
     @Override
@@ -91,10 +96,26 @@ public class ConnectorLauncher {
       hikariConfig.setConnectionTimeout(TimeUnit.MINUTES.toMillis(1));
       hikariConfig.setMaximumPoolSize(10);
 
-      log.info("Connecting to Jira database at URL: {}, Username: {}", hikariConfig.getJdbcUrl(),
-          hikariConfig.getUsername());
+      log.info("Connecting to Jira database {} with user {}",
+          buildSafeJdbcUrl(hikariConfig.getJdbcUrl()), hikariConfig.getUsername());
 
       bind(HikariDataSource.class).toInstance(new HikariDataSource(hikariConfig));
+    }
+
+    /**
+     * return Jdbc url with excluded sensitive information (password, params etc).
+     */
+    @VisibleForTesting
+    String buildSafeJdbcUrl(String jdbcUrl) {
+      Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+:\\S+@)?(\\S+?)(:\\d+)?(/\\S+?)(\\?.*)?");
+      Matcher matcher = jdbcUrlPattern.matcher(jdbcUrl);
+      if (matcher.matches()) {
+        String host = matcher.group(2);
+        String port = matcher.group(3);
+        String path = matcher.group(4);
+        return host + StringUtils.defaultIfEmpty(port, ":default") + path;
+      }
+      return "";
     }
   }
 }
