@@ -107,13 +107,23 @@ public class ConnectorLauncher {
      */
     @VisibleForTesting
     String buildSafeJdbcUrl(String jdbcUrl) {
-      Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+:\\S+@)?(\\S+?)(:\\d+)?(/\\S+?)(\\?.*)?");
-      Matcher matcher = jdbcUrlPattern.matcher(jdbcUrl);
-      if (matcher.matches()) {
-        String host = matcher.group(2);
-        String port = matcher.group(3);
-        String path = matcher.group(4);
-        return host + StringUtils.defaultIfEmpty(port, ":default") + path;
+      if (StringUtils.startsWithIgnoreCase(jdbcUrl, "jdbc:sqlserver:")) {
+        Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+?)(:\\d+)?(;.*)?");
+        Matcher matcher = jdbcUrlPattern.matcher(jdbcUrl);
+        if (matcher.matches()) {
+          String host = matcher.group(1);
+          String port = matcher.group(2);
+          return host + StringUtils.defaultIfEmpty(port, ":default");
+        }
+      } else {
+        Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+:\\S+@)?(\\S+?)(:\\d+)?(/\\S+?)(\\?.*)?");
+        Matcher matcher = jdbcUrlPattern.matcher(jdbcUrl);
+        if (matcher.matches()) {
+          String host = matcher.group(2);
+          String port = matcher.group(3);
+          String path = matcher.group(4);
+          return host + StringUtils.defaultIfEmpty(port, ":default") + path;
+        }
       }
       return "";
     }
