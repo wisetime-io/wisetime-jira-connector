@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -31,7 +30,6 @@ import io.wisetime.connector.api_client.PostResult;
 import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
-
 import io.wisetime.connector.template.TemplateFormatter;
 import io.wisetime.connector.template.TemplateFormatterConfig;
 import io.wisetime.connector.utils.DurationCalculator;
@@ -128,11 +126,7 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @Override
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
-    log.info("Posted time received for {}: {}",
-        StringUtils.isNotBlank(timeGroup.getUser().getExternalId())
-            ? timeGroup.getUser().getExternalId()
-            : timeGroup.getUser().getEmail(),
-        Base64.getEncoder().encodeToString(timeGroup.toString().getBytes()));
+    log.info("Posted time received: {}", timeGroup.getGroupId());
 
     Optional<String> callerKey = callerKey();
     if (callerKey.isPresent() && !callerKey.get().equals(timeGroup.getCallerKey())) {
@@ -226,7 +220,7 @@ public class JiraConnector implements WiseTimeConnector {
         }
 
         postedIssues
-            .forEach(issue -> log.info("Posted time to Jira issue {} on behalf of {}", issue.getKey(), author.get()));
+            .forEach(issue -> log.info("Posted time {} to Jira issue {}", timeGroup.getGroupId(), issue.getKey()));
       });
     } catch (RuntimeException e) {
       log.warn("There was an error posting time to the Jira database", e);
