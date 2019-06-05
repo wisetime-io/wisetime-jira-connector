@@ -97,35 +97,36 @@ public class ConnectorLauncher {
       hikariConfig.setMaximumPoolSize(10);
 
       log.info("Connecting to Jira database {} with user {}",
-          buildSafeJdbcUrl(hikariConfig.getJdbcUrl()), hikariConfig.getUsername());
+          formatForLogging(hikariConfig.getJdbcUrl()), hikariConfig.getUsername());
 
       bind(HikariDataSource.class).toInstance(new HikariDataSource(hikariConfig));
     }
 
     /**
-     * return Jdbc url with excluded sensitive information (password, params etc).
+     * return Return database connection info, excluding sensitive information (e.g. password).
      */
     @VisibleForTesting
-    String buildSafeJdbcUrl(String jdbcUrl) {
+    String formatForLogging(String jdbcUrl) {
+      String host = "UNKNOWN";
+      String port = "UNKNOWN";
+      String databaseName = "UNKNOWN";
       if (StringUtils.startsWithIgnoreCase(jdbcUrl, "jdbc:sqlserver:")) {
-        Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+?)(:\\d+)?(;.*)?");
+        Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+?)(?::(\\d+))?(;.*)?");
         Matcher matcher = jdbcUrlPattern.matcher(jdbcUrl);
         if (matcher.matches()) {
-          String host = matcher.group(1);
-          String port = matcher.group(2);
-          return host + StringUtils.defaultIfEmpty(port, ":default");
+          host = matcher.group(1);
+          port = StringUtils.defaultIfEmpty(matcher.group(2), "DEFAULT");
         }
       } else {
-        Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+:\\S+@)?(\\S+?)(:\\d+)?(/\\S+?)(\\?.*)?");
+        Pattern jdbcUrlPattern = Pattern.compile(".*//(\\S+:\\S+@)?(\\S+?)(?::(\\d+))?/(\\S+?)(\\?.*)?");
         Matcher matcher = jdbcUrlPattern.matcher(jdbcUrl);
         if (matcher.matches()) {
-          String host = matcher.group(2);
-          String port = matcher.group(3);
-          String path = matcher.group(4);
-          return host + StringUtils.defaultIfEmpty(port, ":default") + path;
+          host = matcher.group(2);
+          port = StringUtils.defaultIfEmpty(matcher.group(3), "DEFAULT");
+          databaseName = matcher.group(4);
         }
       }
-      return "";
+      return String.format("host: %s, port: %s, database name: %s", host, port, databaseName);
     }
   }
 }
