@@ -31,19 +31,21 @@ services:
     environment:
       API_KEY: YOUR_WISETIME_CONNECT_API_KEY
 	  
-	  # Set loglevel if other than default - INFO - required
-	  # LOGLEVEL: DEBUG
+      # Set loglevel if other than default - INFO - required
+      # LOGLEVEL: DEBUG
 
       # define appropriate timezone
       TIMEZONE: Australia/Perth
 
+      # Disable tag uploading by setting TAG_SCAN to DISABLED (tag upload must be done by, etg. using the SQL connector)
+      TAG_SCAN: ENABLED
       TAG_UPSERT_PATH: /Jira/
       TAG_UPSERT_BATCH_SIZE: 500
 
       # uncomment the following - as well as the above docker ports: definition - if the connector
       # should work in webhook mode. If the connector should work using other than the default
       # port, please adapt the docker ports: definition in line with the WEBHOOK_PORT variable.
-      # CONNECTOR_MODE: WEBHOOK
+      # RECEIVE_POSTED_TIME: WEBHOOK
       # CALLER_KEY: PICK_A_SECRET
       # WEBHOOK_PORT: 8080
 
