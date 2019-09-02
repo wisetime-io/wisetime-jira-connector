@@ -236,6 +236,11 @@ public class JiraConnector implements WiseTimeConnector {
     return jiraDao.pingDb();
   }
 
+  @Override
+  public String getConnectorType() {
+    return "wisetime-jira-connector";
+  }
+
   private int tagUpsertBatchSize() {
     return RuntimeConfig
         .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
