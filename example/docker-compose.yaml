@@ -60,11 +60,6 @@ services:
       JIRA_DB_USER: USERNAME
       JIRA_DB_PASSWORD: PASSWORD
 
-      # AWS CloudWatch logging
-      AWS_ACCESS_KEY_ID: YOUR_AWS_ACCESS_KEY
-      AWS_SECRET_ACCESS_KEY: YOUR_AWS_SECRET_ACCESS_KEY
-      AWS_REGION: ap-southeast-1
-
       # Local cache for keeping track of cases and projects that have been synced
       DATA_DIR: /usr/local/wisetime-connector/data/
 
