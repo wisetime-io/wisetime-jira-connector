@@ -141,7 +141,10 @@ public class JiraConnector implements WiseTimeConnector {
 
     final Predicate<Tag> relevantProjectKey = tag -> {
       if (getProjectKeysFilter().length == 0) {
-        return true;
+        // filter our not jira specific tags early
+        return JiraDao.IssueKey
+            .fromTagName(tag.getName())
+            .isPresent();
       }
       return JiraDao.IssueKey
           .fromTagName(tag.getName())
@@ -152,7 +155,8 @@ public class JiraConnector implements WiseTimeConnector {
     final List<Tag> relevantTags = timeGroup.getTags().stream().filter(relevantProjectKey).collect(Collectors.toList());
     if (relevantTags.isEmpty()) {
       return PostResult.SUCCESS()
-          .withMessage("Time group has no tags matching specified project keys filter. There is nothing to post to Jira.");
+          .withMessage("Time group has no Jira tags or tags matching specified project keys filter. "
+              + "There is nothing to post to Jira.");
     }
 
     final Optional<LocalDateTime> activityStartTime = startTime(timeGroup);
@@ -212,12 +216,6 @@ public class JiraConnector implements WiseTimeConnector {
             .map(updateIssueTimeSpent)
             .map(createWorklog)
             .collect(Collectors.toList());
-
-        // No issues to be posted, so db might not have been pinged yet
-        if (postedIssues.isEmpty()) {
-          // make sure to at least ping the DB once, so the connection autoCommit is set to false by fluentJdbc
-          jiraDao.pingDb();
-        }
 
         postedIssues
             .forEach(issue -> log.info("Posted time {} to Jira issue {}", timeGroup.getGroupId(), issue.getKey()));
