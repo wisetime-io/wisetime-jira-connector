@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Connector application entry point.
  *
- * @author shane.xie@practiceinsight.io
+ * @author shane.xie
  */
 public class ConnectorLauncher {
 

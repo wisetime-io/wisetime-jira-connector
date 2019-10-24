@@ -48,8 +48,8 @@ import static java.util.stream.Collectors.toList;
 /**
  * Simple, unsophisticated access to the Jira database.
  *
- * @author shane.xie@practiceinsight.io
- * @author alvin.llobrera@practiceinsight.io
+ * @author shane.xie
+ * @author alvin.llobrera
  */
 class JiraDao {
   private final Logger log = LoggerFactory.getLogger(JiraDao.class);

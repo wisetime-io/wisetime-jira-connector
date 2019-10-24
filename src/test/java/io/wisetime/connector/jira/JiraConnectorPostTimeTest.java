@@ -47,7 +47,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * @author shane.xie#practiceinsight.io
+ * @author shane.xie
  */
 class JiraConnectorPostTimeTest {
 

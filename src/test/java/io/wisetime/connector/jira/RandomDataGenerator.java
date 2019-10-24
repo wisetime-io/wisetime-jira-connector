@@ -20,7 +20,7 @@ import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
 
 /**
- * @author shane.xie@practiceinsight.io
+ * @author shane.xie
  */
 class RandomDataGenerator {
 

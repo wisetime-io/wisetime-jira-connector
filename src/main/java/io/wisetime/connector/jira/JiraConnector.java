@@ -47,7 +47,7 @@ import static io.wisetime.connector.utils.ActivityTimeCalculator.startTime;
 /**
  * WiseTime Connector implementation for Jira.
  *
- * @author shane.xie@practiceinsight.io
+ * @author shane.xie
  */
 public class JiraConnector implements WiseTimeConnector {
 

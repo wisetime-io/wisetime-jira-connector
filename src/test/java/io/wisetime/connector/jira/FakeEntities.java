@@ -22,7 +22,7 @@ import static java.lang.String.format;
 /**
  * Generator of entities with random field values. Typically used to mock real data.
  *
- * @author shane.xie@practiceinsight.io
+ * @author shane.xie
  */
 public class FakeEntities {
 

@@ -45,8 +45,8 @@ import static io.wisetime.connector.jira.JiraDao.Worklog;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * @author shane.xie@practiceinsight.io
- * @author alvin.llobrera@practiceinsight.io
+ * @author shane.xie
+ * @author alvin.llobrera
  */
 class JiraDaoTest {
 
