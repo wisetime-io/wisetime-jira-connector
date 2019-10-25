@@ -22,7 +22,7 @@ steps:
         path: /cache
 
   - name: unit-test
-    image: openjdk:8-jdk-slim
+    image: openjdk:8-jdk
     environment:
       GRADLE_USER_HOME: .gcache
       GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false

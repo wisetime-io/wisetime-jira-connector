@@ -4,31 +4,6 @@
 
 package io.wisetime.connector.jira;
 
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Guice;
-
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import io.wisetime.connector.ConnectorModule;
-import io.wisetime.connector.api_client.ApiClient;
-import io.wisetime.connector.api_client.PostResult;
-import io.wisetime.connector.api_client.PostResult.PostResultStatus;
-import io.wisetime.connector.config.ConnectorConfigKey;
-import io.wisetime.connector.config.RuntimeConfig;
-import io.wisetime.connector.datastore.ConnectorStore;
-import io.wisetime.generated.connect.Tag;
-import io.wisetime.generated.connect.TimeGroup;
-import io.wisetime.generated.connect.TimeRow;
-import io.wisetime.generated.connect.User;
-import spark.Request;
-
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
@@ -45,6 +20,29 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Guice;
+import io.wisetime.connector.ConnectorModule;
+import io.wisetime.connector.api_client.ApiClient;
+import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.api_client.PostResult.PostResultStatus;
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
+import io.wisetime.connector.datastore.ConnectorStore;
+import io.wisetime.generated.connect.Tag;
+import io.wisetime.generated.connect.TimeGroup;
+import io.wisetime.generated.connect.TimeRow;
+import io.wisetime.generated.connect.User;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import spark.Request;
 
 /**
  * @author shane.xie
@@ -93,6 +91,16 @@ class JiraConnectorPostTimeTest {
         .as("There is nothing to post to Jira");
 
     verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_emoji_removed() throws IOException {
+    String clapHand = "\uD83D\uDC4F";
+    // https://www.mobilefish.com/services/unicode_escape_sequence_converter/unicode_escape_sequence_converter.php
+    String clapHandsEmojiStr = "clap hands emoji " + clapHand;
+    assertThat(connector.trimToUtf8(clapHandsEmojiStr))
+        .as("emoji chars not accepted into jira comments")
+        .isEqualTo("clap hands emoji");
   }
 
   @Test
