@@ -7,6 +7,7 @@ package io.wisetime.connector.jira;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import com.vdurmont.emoji.EmojiParser;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -198,6 +199,13 @@ public class JiraConnector implements WiseTimeConnector {
     return PostResult.SUCCESS();
   }
 
+  /**
+   * Returns trimmed string, where characters that supported jira databases cannot support, such as emoji characters.
+   */
+  String trimToUtf8(String messageBody) {
+    return StringUtils.trimToEmpty(EmojiParser.removeAllEmojis(messageBody));
+  }
+
   @Override
   public boolean isConnectorHealthy() {
     return jiraDao.pingDb();
@@ -242,7 +250,11 @@ public class JiraConnector implements WiseTimeConnector {
 
   private Worklog buildWorklog(final Issue issue, final TimeGroup timeGroup,
                                final String author, final LocalDateTime startTime, final long workedTime) {
-    final String messageBody = templateFormatter.format(timeGroup);
+    final String messageBody = StringUtils.trimToEmpty(
+        EmojiParser.removeAllEmojis(
+            templateFormatter.format(timeGroup)
+        )
+    );
     return Worklog
         .builder()
         .issueId(issue.getId())

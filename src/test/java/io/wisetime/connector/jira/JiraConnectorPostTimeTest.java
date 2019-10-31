@@ -325,7 +325,12 @@ class JiraConnectorPostTimeTest {
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
+
+    final String clapHand = "\uD83D\uDC4F";
+    // https://www.mobilefish.com/services/unicode_escape_sequence_converter/unicode_escape_sequence_converter.php
+    String withClapHandsEmoji = "Clap hands emoji " + clapHand;
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109)
+        .activity(withClapHandsEmoji);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
@@ -369,6 +374,10 @@ class JiraConnectorPostTimeTest {
 
     assertThat(createdWorklogs.get(0).getBody())
         .isNotEmpty();
+
+    assertThat(createdWorklogs.get(1).getBody())
+        .doesNotContain(clapHand)
+        .as("The worklog body should not contain emojis");
 
     assertThat(createdWorklogs.get(0).getCreated())
         .isEqualTo(LocalDateTime.of(2018, 11, 1, 9, 0))
