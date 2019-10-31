@@ -213,7 +213,6 @@ public class JiraConnector implements WiseTimeConnector {
       tag.getPath().equals(tagUpsertPath() + tag.getName()) ||
           tag.getPath().equals(StringUtils.strip(tagUpsertPath(), "/"));  // Old, deprecated format
 
-
   private final Predicate<Tag> relevantProjectKey = tag -> {
     if (getProjectKeysFilter().length > 0) {
       return JiraDao.IssueKey
