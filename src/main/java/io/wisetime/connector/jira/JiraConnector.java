@@ -290,7 +290,7 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   private static class IssueNotFoundException extends RuntimeException {
-    public IssueNotFoundException(String message) {
+    IssueNotFoundException(String message) {
       super(message);
     }
   }
