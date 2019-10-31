@@ -199,13 +199,6 @@ public class JiraConnector implements WiseTimeConnector {
     return PostResult.SUCCESS();
   }
 
-  /**
-   * Returns trimmed string, where characters that supported jira databases cannot support, such as emoji characters.
-   */
-  String trimToUtf8(String messageBody) {
-    return StringUtils.trimToEmpty(EmojiParser.removeAllEmojis(messageBody));
-  }
-
   @Override
   public boolean isConnectorHealthy() {
     return jiraDao.pingDb();
