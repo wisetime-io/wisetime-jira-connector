@@ -71,6 +71,7 @@ class JiraConnectorPostTimeTest {
 
   @BeforeEach
   void setUpTest() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/Jira/");
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
     RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
@@ -187,7 +188,7 @@ class JiraConnectorPostTimeTest {
     final TimeGroup timeGroup = fakeEntities
         .randomTimeGroup()
         .user(fakeEntities.randomUser()
-            .externalId(null)); // we should only check on email if external id is not set
+            .externalId(null));  // We should only check on email if external id is not set
 
     when(jiraDaoMock.findUsernameByEmail(timeGroup.getUser().getEmail())).thenReturn(Optional.empty());
 
@@ -267,13 +268,29 @@ class JiraConnectorPostTimeTest {
   }
 
   @Test
-  void postTime_cant_find_issue() {
+  void postTime_cant_find_relevant_issue() {
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
     when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
-
     when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .as("This tag is relevant to the connector but it couldn't find it in Jira")
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
+
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_cant_find_issue_but_not_relevant() {
+    final Tag tag = fakeEntities.randomTag("/Admin/");
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(ImmutableList.of(tag));
+
+    when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .as("This connector could not find the tag in Jira. However, the tag was not created by the connector " +
+            "and is therefore not relevant for this posted time group.")
         .isEqualTo(PostResultStatus.SUCCESS);
 
     verifyJiraNotUpdated();
@@ -306,7 +323,6 @@ class JiraConnectorPostTimeTest {
   void postTime_with_valid_group_should_succeed() {
     final Tag tag1 = fakeEntities.randomTag("/Jira/");
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
-    final Tag tag3 = fakeEntities.randomTag("/Jira/");
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
     final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
@@ -314,11 +330,11 @@ class JiraConnectorPostTimeTest {
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
-        .tags(ImmutableList.of(tag1, tag2, tag3))
+        .tags(ImmutableList.of(tag1, tag2))
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
-        .totalDurationSecs(1500);
+        .totalDurationSecs(1000);
 
     when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
 
@@ -328,7 +344,6 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.findIssueByTagName(anyString()))
         .thenReturn(Optional.of(issue1))
         .thenReturn(Optional.of(issue2))
-        // Last tag has no matching Jira issue
         .thenReturn(Optional.empty());
 
     assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
@@ -385,8 +400,8 @@ class JiraConnectorPostTimeTest {
   void postTime_should_only_handle_configured_project_keys() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT");
 
-    final Tag tagWt = fakeEntities.randomTag("/Jira/").name("WT-2");
-    final Tag tagOther = fakeEntities.randomTag("/Jira/").name("OTHER-1");
+    final Tag tagWt = fakeEntities.randomTag("/Jira/", "WT-2");
+    final Tag tagOther = fakeEntities.randomTag("/Jira/", "OTHER-1");
     final TimeGroup timeGroup = fakeEntities
         .randomTimeGroup()
         .tags(ImmutableList.of(tagWt, tagOther));
@@ -412,8 +427,7 @@ class JiraConnectorPostTimeTest {
         .randomTimeGroup()
         .tags(ImmutableList.of(tagOther));
 
-    when(jiraDaoMock.findUsernameByEmail(anyString()))
-        .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+    when(jiraDaoMock.userExists(anyString())).thenReturn(true);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("There is nothing to post to Jira")
