@@ -281,6 +281,22 @@ class JiraConnectorPostTimeTest {
   }
 
   @Test
+  void postTime_cant_find_relevant_issue_backwards_compatibility() {
+    final Tag tag = fakeEntities.randomTagWithOldPathFormat("Jira");
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(ImmutableList.of(tag));
+
+    when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+    when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .as("This tag is relevant to the connector but it couldn't find it in Jira")
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
+
+    verifyJiraNotUpdated();
+  }
+
+  @Test
   void postTime_cant_find_issue_but_not_relevant() {
     final Tag tag = fakeEntities.randomTag("/Admin/");
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
