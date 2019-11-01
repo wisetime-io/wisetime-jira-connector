@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -53,7 +53,6 @@ import static io.wisetime.connector.utils.ActivityTimeCalculator.startTime;
 public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
-
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
 
   private ApiClient apiClient;
@@ -62,6 +61,11 @@ public class JiraConnector implements WiseTimeConnector {
 
   @Inject
   private JiraDao jiraDao;
+
+  @Override
+  public String getConnectorType() {
+    return "wisetime-jira-connector";
+  }
 
   @Override
   public void init(final ConnectorModule connectorModule) {
@@ -129,10 +133,9 @@ public class JiraConnector implements WiseTimeConnector {
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
     log.info("Posted time received: {}", timeGroup.getGroupId());
 
-    Optional<String> callerKey = callerKey();
-    if (callerKey.isPresent() && !callerKey.get().equals(timeGroup.getCallerKey())) {
+    if (callerKey().isPresent() && !callerKey().get().equals(timeGroup.getCallerKey())) {
       return PostResult.PERMANENT_FAILURE()
-          .withMessage("Invalid caller key in post time webhook call");
+          .withMessage("Invalid caller key in posted time webhook call");
     }
 
     if (timeGroup.getTags().isEmpty()) {
@@ -140,24 +143,15 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Time group has no tags. There is nothing to post to Jira.");
     }
 
-    final Predicate<Tag> relevantProjectKey = tag -> {
-      if (getProjectKeysFilter().length == 0) {
-        // filter our not jira specific tags early
-        return JiraDao.IssueKey
-            .fromTagName(tag.getName())
-            .isPresent();
-      }
-      return JiraDao.IssueKey
-          .fromTagName(tag.getName())
-          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey.getProjectKey()))
-          .isPresent();
-    };
+    final Set<Tag> relevantTags = timeGroup.getTags().stream()
+        .filter(createdByConnector)
+        .filter(relevantProjectKey)
+        .collect(Collectors.toSet());
 
-    final List<Tag> relevantTags = timeGroup.getTags().stream().filter(relevantProjectKey).collect(Collectors.toList());
     if (relevantTags.isEmpty()) {
       return PostResult.SUCCESS()
-          .withMessage("Time group has no Jira tags or tags matching specified project keys filter. "
-              + "There is nothing to post to Jira.");
+          .withMessage("Time group has no Jira tags or it contains tags that don't match the configured " +
+              "project keys filter. There is nothing to post to Jira.");
     }
 
     final Optional<LocalDateTime> activityStartTime = startTime(timeGroup);
@@ -166,62 +160,36 @@ public class JiraConnector implements WiseTimeConnector {
           .withMessage("Cannot post time group with no time rows");
     }
 
-    final Optional<String> author = getJiraUser(timeGroup.getUser());
+    final Optional<String> author = findUser(timeGroup.getUser());
     if (!author.isPresent()) {
       return PostResult.PERMANENT_FAILURE()
           .withMessage("User does not exist in Jira");
     }
-
-    final Function<Tag, Optional<Issue>> findIssue = tag -> {
-      final Optional<Issue> issue = jiraDao.findIssueByTagName(tag.getName());
-      if (!issue.isPresent()) {
-        log.warn("Can't find Jira issue for tag {}. No time will be posted for this tag.", tag.getName());
-      }
-      return issue;
-    };
 
     final long workedTime = DurationCalculator
         .of(timeGroup)
         .calculate()
         .getPerTagDuration();
 
-    final Function<Issue, Issue> updateIssueTimeSpent = issue -> {
-      final long updatedTimeSpent = issue.getTimeSpent() + workedTime;
-      jiraDao.updateIssueTimeSpent(issue.getId(), updatedTimeSpent);
-      return issue;
-    };
-
-    final Function<Issue, Issue> createWorklog = forIssue -> {
-      final String messageBody = trimToUtf8(templateFormatter.format(timeGroup));
-
-      final Worklog worklog = Worklog
-          .builder()
-          .issueId(forIssue.getId())
-          .author(author.get())
-          .body(messageBody)
-          .created(activityStartTime.get())
-          .timeWorked(workedTime)
-          .build();
-
-      jiraDao.createWorklog(worklog);
-      return forIssue;
-    };
-
     try {
       jiraDao.asTransaction(() -> {
-        final List<Issue> postedIssues = relevantTags
-            .stream()
-            .map(findIssue)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
+        relevantTags.stream()
+            .forEach(tag -> {
+              final Issue issue = jiraDao
+                  .findIssueByTagName(tag.getName())
+                  .orElseThrow(() -> new IssueNotFoundException("Can't find Jira issue for tag " + tag.getName()));
 
-            .map(updateIssueTimeSpent)
-            .map(createWorklog)
-            .collect(Collectors.toList());
-
-        postedIssues
-            .forEach(issue -> log.info("Posted time {} to Jira issue {}", timeGroup.getGroupId(), issue.getKey()));
+              jiraDao.updateIssueTimeSpent(issue.getId(), issue.getTimeSpent() + workedTime);
+              final Worklog worklog = buildWorklog(issue, timeGroup, author.get(), activityStartTime.get(), workedTime);
+              jiraDao.createWorklog(worklog);
+              log.info("Posted time {} to Jira issue {}", timeGroup.getGroupId(), issue.getKey());
+            });
       });
+    } catch (IssueNotFoundException e) {
+      log.warn("Can't post time to Jira: " + e.getMessage());
+      return PostResult.PERMANENT_FAILURE()
+          .withError(e)
+          .withMessage(e.getMessage());
     } catch (RuntimeException e) {
       log.warn("There was an error posting time to the Jira database", e);
       return PostResult.TRANSIENT_FAILURE()
@@ -231,21 +199,62 @@ public class JiraConnector implements WiseTimeConnector {
     return PostResult.SUCCESS();
   }
 
-  /**
-   * Returns trimmed string, where characters that supported jira databases cannot support, such as emoji characters.
-   */
-  String trimToUtf8(String messageBody) {
-    return StringUtils.trimToEmpty(EmojiParser.removeAllEmojis(messageBody));
-  }
-
   @Override
   public boolean isConnectorHealthy() {
     return jiraDao.pingDb();
   }
 
   @Override
-  public String getConnectorType() {
-    return "wisetime-jira-connector";
+  public void shutdown() {
+    jiraDao.shutdown();
+  }
+
+  private final Predicate<Tag> createdByConnector = tag ->
+      tag.getPath().equals(tagUpsertPath() + tag.getName()) ||
+          tag.getPath().equals(StringUtils.strip(tagUpsertPath(), "/"));  // Old, deprecated format
+
+  private final Predicate<Tag> relevantProjectKey = tag -> {
+    if (getProjectKeysFilter().length > 0) {
+      return JiraDao.IssueKey
+          .fromTagName(tag.getName())
+          .filter(issueKey -> ArrayUtils.contains(getProjectKeysFilter(), issueKey.getProjectKey()))
+          .isPresent();
+    }
+    return JiraDao.IssueKey
+        .fromTagName(tag.getName())
+        .isPresent();
+  };
+
+  private Optional<String> findUser(final User user) {
+    if (StringUtils.isEmpty(user.getExternalId())) {
+      return jiraDao.findUsernameByEmail(user.getEmail());
+    }
+    if (jiraDao.userExists(user.getExternalId())) {
+      // This is the user's Jira username
+      return Optional.of(user.getExternalId());
+    }
+    if (user.getExternalId().split("@").length == 2) {
+      // Looks like an email
+      return jiraDao.findUsernameByEmail(user.getExternalId());
+    }
+    return Optional.empty();
+  }
+
+  private Worklog buildWorklog(final Issue issue, final TimeGroup timeGroup,
+                               final String author, final LocalDateTime startTime, final long workedTime) {
+    final String messageBody = StringUtils.trimToEmpty(
+        EmojiParser.removeAllEmojis(
+            templateFormatter.format(timeGroup)
+        )
+    );
+    return Worklog
+        .builder()
+        .issueId(issue.getId())
+        .author(author)
+        .body(messageBody)
+        .created(startTime)
+        .timeWorked(workedTime)
+        .build();
   }
 
   private int tagUpsertBatchSize() {
@@ -266,10 +275,8 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * If configured, the connector will only handle the project keys returned by this method. If project keys filter is
-   * not configured, the connector will handle all Jira projects.
-   *
-   * @return array of projects keys
+   * If configured, the connector will only handle the project keys returned by this method.
+   * Otherwise the connector will handle all Jira projects.
    */
   @VisibleForTesting
   String[] getProjectKeysFilter() {
@@ -282,27 +289,9 @@ public class JiraConnector implements WiseTimeConnector {
         ).orElse(ArrayUtils.toArray());
   }
 
-  private Optional<String> getJiraUser(User user) {
-    if (StringUtils.isNotBlank(user.getExternalId())) {
-      if (jiraDao.userExists(user.getExternalId())) {
-        // return External ID if it's the user's Login ID/Username in Jira
-        return Optional.of(user.getExternalId());
-
-      } else if (user.getExternalId().split("@").length == 2) {
-        // if External ID is not the Login ID but it looks like an email, try to find a user with that email
-        return jiraDao.findUsernameByEmail(user.getExternalId());
-      }
-
-    } else {
-      // If user has no defined External ID, use his/her email to check for a Jira user
-      return jiraDao.findUsernameByEmail(user.getEmail());
+  private static class IssueNotFoundException extends RuntimeException {
+    IssueNotFoundException(String message) {
+      super(message);
     }
-
-    return Optional.empty();
-  }
-
-  @Override
-  public void shutdown() {
-    jiraDao.shutdown();
   }
 }

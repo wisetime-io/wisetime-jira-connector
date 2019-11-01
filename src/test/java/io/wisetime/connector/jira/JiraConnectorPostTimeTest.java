@@ -4,6 +4,31 @@
 
 package io.wisetime.connector.jira;
 
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Guice;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import io.wisetime.connector.ConnectorModule;
+import io.wisetime.connector.api_client.ApiClient;
+import io.wisetime.connector.api_client.PostResult;
+import io.wisetime.connector.api_client.PostResult.PostResultStatus;
+import io.wisetime.connector.config.ConnectorConfigKey;
+import io.wisetime.connector.config.RuntimeConfig;
+import io.wisetime.connector.datastore.ConnectorStore;
+import io.wisetime.generated.connect.Tag;
+import io.wisetime.generated.connect.TimeGroup;
+import io.wisetime.generated.connect.TimeRow;
+import io.wisetime.generated.connect.User;
+import spark.Request;
+
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKey;
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
@@ -20,29 +45,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Guice;
-import io.wisetime.connector.ConnectorModule;
-import io.wisetime.connector.api_client.ApiClient;
-import io.wisetime.connector.api_client.PostResult;
-import io.wisetime.connector.api_client.PostResult.PostResultStatus;
-import io.wisetime.connector.config.ConnectorConfigKey;
-import io.wisetime.connector.config.RuntimeConfig;
-import io.wisetime.connector.datastore.ConnectorStore;
-import io.wisetime.generated.connect.Tag;
-import io.wisetime.generated.connect.TimeGroup;
-import io.wisetime.generated.connect.TimeRow;
-import io.wisetime.generated.connect.User;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import spark.Request;
 
 /**
  * @author shane.xie
@@ -69,6 +71,7 @@ class JiraConnectorPostTimeTest {
 
   @BeforeEach
   void setUpTest() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/Jira/");
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
     RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
@@ -91,16 +94,6 @@ class JiraConnectorPostTimeTest {
         .as("There is nothing to post to Jira");
 
     verifyJiraNotUpdated();
-  }
-
-  @Test
-  void postTime_emoji_removed() throws IOException {
-    String clapHand = "\uD83D\uDC4F";
-    // https://www.mobilefish.com/services/unicode_escape_sequence_converter/unicode_escape_sequence_converter.php
-    String clapHandsEmojiStr = "clap hands emoji " + clapHand;
-    assertThat(connector.trimToUtf8(clapHandsEmojiStr))
-        .as("emoji chars not accepted into jira comments")
-        .isEqualTo("clap hands emoji");
   }
 
   @Test
@@ -195,7 +188,7 @@ class JiraConnectorPostTimeTest {
     final TimeGroup timeGroup = fakeEntities
         .randomTimeGroup()
         .user(fakeEntities.randomUser()
-            .externalId(null)); // we should only check on email if external id is not set
+            .externalId(null));  // We should only check on email if external id is not set
 
     when(jiraDaoMock.findUsernameByEmail(timeGroup.getUser().getEmail())).thenReturn(Optional.empty());
 
@@ -275,13 +268,45 @@ class JiraConnectorPostTimeTest {
   }
 
   @Test
-  void postTime_cant_find_issue() {
+  void postTime_cant_find_relevant_issue() {
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup();
     when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
-
     when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .as("This tag is relevant to the connector but it couldn't find it in Jira")
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
+
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_cant_find_relevant_issue_backwards_compatibility() {
+    final Tag tag = fakeEntities.randomTagWithOldPathFormat("Jira");
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(ImmutableList.of(tag));
+
+    when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+    when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .as("This tag is relevant to the connector but it couldn't find it in Jira")
+        .isEqualTo(PostResultStatus.PERMANENT_FAILURE);
+
+    verifyJiraNotUpdated();
+  }
+
+  @Test
+  void postTime_cant_find_issue_but_not_relevant() {
+    final Tag tag = fakeEntities.randomTag("/Admin/");
+    final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
+        .tags(ImmutableList.of(tag));
+
+    when(jiraDaoMock.findIssueByTagName(anyString())).thenReturn(Optional.empty());
+
+    assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
+        .as("This connector could not find the tag in Jira. However, the tag was not created by the connector " +
+            "and is therefore not relevant for this posted time group.")
         .isEqualTo(PostResultStatus.SUCCESS);
 
     verifyJiraNotUpdated();
@@ -314,19 +339,23 @@ class JiraConnectorPostTimeTest {
   void postTime_with_valid_group_should_succeed() {
     final Tag tag1 = fakeEntities.randomTag("/Jira/");
     final Tag tag2 = fakeEntities.randomTag("/Jira/");
-    final Tag tag3 = fakeEntities.randomTag("/Jira/");
 
     final TimeRow timeRow1 = fakeEntities.randomTimeRow().activityHour(2018110110);
-    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109);
+
+    final String clapHand = "\uD83D\uDC4F";
+    // https://www.mobilefish.com/services/unicode_escape_sequence_converter/unicode_escape_sequence_converter.php
+    String withClapHandsEmoji = "Clap hands emoji " + clapHand;
+    final TimeRow timeRow2 = fakeEntities.randomTimeRow().activityHour(2018110109)
+        .activity(withClapHandsEmoji);
 
     final User user = fakeEntities.randomUser().experienceWeightingPercent(50);
 
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
-        .tags(ImmutableList.of(tag1, tag2, tag3))
+        .tags(ImmutableList.of(tag1, tag2))
         .timeRows(ImmutableList.of(timeRow1, timeRow2))
         .user(user)
         .durationSplitStrategy(TimeGroup.DurationSplitStrategyEnum.DIVIDE_BETWEEN_TAGS)
-        .totalDurationSecs(1500);
+        .totalDurationSecs(1000);
 
     when(jiraDaoMock.userExists(timeGroup.getUser().getExternalId())).thenReturn(true);
 
@@ -336,7 +365,6 @@ class JiraConnectorPostTimeTest {
     when(jiraDaoMock.findIssueByTagName(anyString()))
         .thenReturn(Optional.of(issue1))
         .thenReturn(Optional.of(issue2))
-        // Last tag has no matching Jira issue
         .thenReturn(Optional.empty());
 
     assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
@@ -362,6 +390,10 @@ class JiraConnectorPostTimeTest {
 
     assertThat(createdWorklogs.get(0).getBody())
         .isNotEmpty();
+
+    assertThat(createdWorklogs.get(1).getBody())
+        .doesNotContain(clapHand)
+        .as("The worklog body should not contain emojis");
 
     assertThat(createdWorklogs.get(0).getCreated())
         .isEqualTo(LocalDateTime.of(2018, 11, 1, 9, 0))
@@ -393,8 +425,8 @@ class JiraConnectorPostTimeTest {
   void postTime_should_only_handle_configured_project_keys() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT");
 
-    final Tag tagWt = fakeEntities.randomTag("/Jira/").name("WT-2");
-    final Tag tagOther = fakeEntities.randomTag("/Jira/").name("OTHER-1");
+    final Tag tagWt = fakeEntities.randomTag("/Jira/", "WT-2");
+    final Tag tagOther = fakeEntities.randomTag("/Jira/", "OTHER-1");
     final TimeGroup timeGroup = fakeEntities
         .randomTimeGroup()
         .tags(ImmutableList.of(tagWt, tagOther));
@@ -420,8 +452,7 @@ class JiraConnectorPostTimeTest {
         .randomTimeGroup()
         .tags(ImmutableList.of(tagOther));
 
-    when(jiraDaoMock.findUsernameByEmail(anyString()))
-        .thenReturn(Optional.of(timeGroup.getUser().getExternalId()));
+    when(jiraDaoMock.userExists(anyString())).thenReturn(true);
 
     assertThat(connector.postTime(fakeRequest(), timeGroup).getStatus())
         .as("There is nothing to post to Jira")

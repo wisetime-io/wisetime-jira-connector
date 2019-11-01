@@ -17,8 +17,6 @@ import io.wisetime.generated.connect.TimeGroup;
 import io.wisetime.generated.connect.TimeRow;
 import io.wisetime.generated.connect.User;
 
-import static java.lang.String.format;
-
 /**
  * Generator of entities with random field values. Typically used to mock real data.
  *
@@ -27,7 +25,6 @@ import static java.lang.String.format;
 public class FakeEntities {
 
   private static final Faker FAKER = new Faker();
-  private static final String TAG_PATH = format("/%s/%s/", FAKER.lorem().word(), FAKER.lorem().word());
 
   public TimeGroup randomTimeGroup() {
     final List<TimeRow> timeRows = randomEntities(this::randomTimeRow, 1, 10);
@@ -38,21 +35,30 @@ public class FakeEntities {
         .description(FAKER.lorem().paragraph())
         .totalDurationSecs(timeRows.stream().mapToInt(TimeRow::getDurationSecs).sum())
         .groupName(FAKER.color().name())
-        .tags(randomEntities(() -> randomTag(TAG_PATH), 1, 3))
+        .tags(randomEntities(() -> randomTag("/Jira/"), 1, 3))
         .user(randomUser())
         .timeRows(timeRows)
         .narrativeType(randomEnum(TimeGroup.NarrativeTypeEnum.class))
         .durationSplitStrategy(randomEnum(TimeGroup.DurationSplitStrategyEnum.class));
   }
 
-  public Tag randomTag() {
-    return randomTag(format("/%s/", FAKER.lorem().word()));
-  }
-
-  public Tag randomTag(final String path) {
+  public Tag randomTagWithOldPathFormat(final String path) {
+    final String name = FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999);
     return new Tag()
         .path(path)
-        .name(FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999))
+        .name(name)
+        .description(FAKER.lorem().characters(30, 200));
+  }
+
+  public Tag randomTag(final String pathPrefix) {
+    final String name = FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999);
+    return randomTag(pathPrefix, name);
+  }
+
+  public Tag randomTag(final String pathPrefix, final String name) {
+    return new Tag()
+        .path(pathPrefix + name)
+        .name(name)
         .description(FAKER.lorem().characters(30, 200));
   }
 
