@@ -54,6 +54,7 @@ public class JiraConnector implements WiseTimeConnector {
 
   private static final Logger log = LoggerFactory.getLogger(WiseTimeConnector.class);
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
+  private static final String LAST_REFRESHED_ISSUE_KEY = "last-refreshed-issue-id";
 
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
@@ -82,47 +83,18 @@ public class JiraConnector implements WiseTimeConnector {
   }
 
   /**
-   * Called by the WiseTime Connector library on a regular schedule. Finds Jira issues that haven't been synced and creates
-   * matching tags for them in WiseTime.
+   * Called by the WiseTime Connector library on a regular schedule.
+   *
+   *   1. Finds all Jira issues that haven't been synced and creates matching tags for them in WiseTime.
+   *      Blocks until all issues have been synced.
+   *
+   *   2. Sends a batch of already synced issues to WiseTime to maintain freshness of existing tags.
+   *      Mitigates effect of renamed or missed tags. Only one refresh batch per performTagUpdate() call.
    */
   @Override
   public void performTagUpdate() {
-    while (true) {
-      final Optional<Long> lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY);
-
-      final List<Issue> issues = jiraDao.findIssuesOrderedById(
-          lastPreviouslySyncedIssueId.orElse(0L),
-          tagUpsertBatchSize(),
-          getProjectKeysFilter()
-      );
-
-      if (issues.isEmpty()) {
-        log.info("No new tags found. Last issue ID synced: {}", lastPreviouslySyncedIssueId);
-        return;
-      } else {
-        try {
-          log.info("Detected {} new {}: {}",
-              issues.size(),
-              issues.size() > 1 ? "tags" : "tag",
-              issues.stream().map(Issue::getKey).collect(Collectors.joining(", ")));
-
-          final List<UpsertTagRequest> upsertRequests = issues
-              .stream()
-              .map(i -> i.toUpsertTagRequest(tagUpsertPath()))
-              .collect(Collectors.toList());
-
-          apiClient.tagUpsertBatch(upsertRequests);
-
-          final long lastSyncedIssueId = issues.get(issues.size() - 1).getId();
-          connectorStore.putLong(LAST_SYNCED_ISSUE_KEY, lastSyncedIssueId);
-          log.info("Last synced issue ID: {}", lastSyncedIssueId);
-        } catch (IOException e) {
-          // The batch will be retried since we didn't update the last synced issue ID
-          // Let scheduler know that this batch has failed
-          throw new RuntimeException(e);
-        }
-      }
-    }
+    syncNewIssues();
+    refreshIssues(tagUpsertBatchSize());
   }
 
   /**
@@ -207,6 +179,80 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public void shutdown() {
     jiraDao.shutdown();
+  }
+
+  /**
+   * Drain all unsynced issues and send to WiseTime
+   */
+  @VisibleForTesting
+  void syncNewIssues() {
+    while (true) {
+      final Optional<Long> lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY);
+
+      final List<Issue> newIssues = jiraDao.findIssuesOrderedById(
+          lastPreviouslySyncedIssueId.orElse(0L),
+          tagUpsertBatchSize(),
+          getProjectKeysFilter()
+      );
+
+      if (newIssues.isEmpty()) {
+        log.info("No new tags found. Last issue ID synced: {}", lastPreviouslySyncedIssueId);
+        return;
+      }
+
+      log.info("Detected {} new {}: {}",
+          newIssues.size(),
+          newIssues.size() > 1 ? "tags" : "tag",
+          newIssues.stream().map(Issue::getKey).collect(Collectors.joining(", ")));
+
+      upsertWiseTimeTags(newIssues);
+
+      final long lastSyncedIssueId = newIssues.get(newIssues.size() - 1).getId();
+      connectorStore.putLong(LAST_SYNCED_ISSUE_KEY, lastSyncedIssueId);
+      log.info("Last synced issue ID: {}", lastSyncedIssueId);
+    }
+  }
+
+  /**
+   * Get one batch of issues and send to WiseTime to keep tags up to date
+   */
+  @VisibleForTesting
+  void refreshIssues(final int batchSize) {
+    final Optional<Long> lastPreviouslyRefreshedIssueId = connectorStore.getLong(LAST_REFRESHED_ISSUE_KEY);
+
+    final List<Issue> refreshIssues = jiraDao.findIssuesOrderedById(
+        lastPreviouslyRefreshedIssueId.orElse(0L),
+        batchSize,
+        getProjectKeysFilter()
+    );
+
+    if (refreshIssues.isEmpty()) {
+      // Start over the next time we are called
+      connectorStore.putLong(LAST_REFRESHED_ISSUE_KEY, 0L);
+      return;
+    }
+
+    log.info("Refreshing {} {}: {}",
+        refreshIssues.size(),
+        refreshIssues.size() > 1 ? "tags" : "tag",
+        refreshIssues.stream().map(Issue::getKey).collect(Collectors.joining(", ")));
+
+    upsertWiseTimeTags(refreshIssues);
+
+    final long lastRefreshedIssueId = refreshIssues.get(refreshIssues.size() - 1).getId();
+    connectorStore.putLong(LAST_REFRESHED_ISSUE_KEY, lastRefreshedIssueId);
+  }
+
+  private void upsertWiseTimeTags(final List<Issue> issues) {
+    try {
+      final List<UpsertTagRequest> upsertRequests = issues
+          .stream()
+          .map(i -> i.toUpsertTagRequest(tagUpsertPath()))
+          .collect(Collectors.toList());
+      apiClient.tagUpsertBatch(upsertRequests);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private final Predicate<Tag> createdByConnector = tag ->
