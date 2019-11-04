@@ -189,10 +189,10 @@ public class JiraConnector implements WiseTimeConnector {
   @VisibleForTesting
   void syncNewIssues() {
     while (true) {
-      final Optional<Long> lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY);
+      final long lastPreviouslySyncedIssueId = connectorStore.getLong(LAST_SYNCED_ISSUE_KEY).orElse(0L);
 
       final List<Issue> newIssues = jiraDao.findIssuesOrderedById(
-          lastPreviouslySyncedIssueId.orElse(0L),
+          lastPreviouslySyncedIssueId,
           tagUpsertBatchSize(),
           getProjectKeysFilter()
       );
@@ -205,7 +205,7 @@ public class JiraConnector implements WiseTimeConnector {
       log.info("Detected {} new {}: {}",
           newIssues.size(),
           newIssues.size() > 1 ? "tags" : "tag",
-          newIssues.stream().map(Issue::getKey).collect(Collectors.joining(", ")));
+          ellipsize(newIssues.stream().map(Issue::getKey).collect(Collectors.toList())));
 
       upsertWiseTimeTags(newIssues);
 
@@ -220,10 +220,10 @@ public class JiraConnector implements WiseTimeConnector {
    */
   @VisibleForTesting
   void refreshIssues(final int batchSize) {
-    final Optional<Long> lastPreviouslyRefreshedIssueId = connectorStore.getLong(LAST_REFRESHED_ISSUE_KEY);
+    final long lastPreviouslyRefreshedIssueId = connectorStore.getLong(LAST_REFRESHED_ISSUE_KEY).orElse(0L);
 
     final List<Issue> refreshIssues = jiraDao.findIssuesOrderedById(
-        lastPreviouslyRefreshedIssueId.orElse(0L),
+        lastPreviouslyRefreshedIssueId,
         batchSize,
         getProjectKeysFilter()
     );
@@ -237,7 +237,7 @@ public class JiraConnector implements WiseTimeConnector {
     log.info("Refreshing {} {}: {}",
         refreshIssues.size(),
         refreshIssues.size() > 1 ? "tags" : "tag",
-        refreshIssues.stream().map(Issue::getKey).collect(Collectors.joining(", ")));
+        ellipsize(refreshIssues.stream().map(Issue::getKey).collect(Collectors.toList())));
 
     upsertWiseTimeTags(refreshIssues);
 
@@ -309,7 +309,7 @@ public class JiraConnector implements WiseTimeConnector {
     return RuntimeConfig
         .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
         // A large batch mitigates query round trip latency
-        .orElse(500);
+        .orElse(200);
   }
 
   private String tagUpsertPath() {
@@ -335,6 +335,13 @@ public class JiraConnector implements WiseTimeConnector {
                 .map(String::trim)
                 .toArray(String[]::new)
         ).orElse(ArrayUtils.toArray());
+  }
+
+  private static String ellipsize(final List<String> items) {
+    if (items.size() < 6) {
+      return String.join(", ", items);
+    }
+    return items.get(0) + ", ... , " + items.get(items.size() - 1);
   }
 
   private static class IssueNotFoundException extends RuntimeException {
