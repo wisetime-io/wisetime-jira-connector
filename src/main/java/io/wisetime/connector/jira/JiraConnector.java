@@ -121,9 +121,11 @@ public class JiraConnector implements WiseTimeConnector {
         .collect(Collectors.toSet());
 
     if (relevantTags.isEmpty()) {
+      final String tagsDescription = timeGroup.getTags().stream()
+          .map(Tag::getPath).collect(Collectors.joining(", "));
       return PostResult.SUCCESS()
-          .withMessage("Time group has no Jira tags or it contains tags that don't match the configured " +
-              "project keys filter. There is nothing to post to Jira.");
+          .withMessage("There is nothing to post to Jira. The time group has no Jira tags or it contains tags that don't " +
+              "match the configured project keys filter. The time group tag paths were " + tagsDescription);
     }
 
     final Optional<LocalDateTime> activityStartTime = startTime(timeGroup);
