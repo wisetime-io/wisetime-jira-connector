@@ -60,7 +60,7 @@ class RandomDataGenerator {
         .build();
   }
 
-  static private <T> List<T> randomEntities(final Supplier<T> supplier, final int min, final int max) {
+  private static <T> List<T> randomEntities(final Supplier<T> supplier, final int min, final int max) {
     return IntStream
         .range(0, FAKER.random().nextInt(min, max))
         .mapToObj(i -> supplier.get())
