@@ -28,12 +28,12 @@ class RandomDataGenerator {
   private static final Faker FAKER = new Faker();
   private static final String TAG_PATH = "/Jira/";
 
-  Issue randomIssue() {
+  static Issue randomIssue() {
     final Tag tag = FAKE_ENTITIES.randomTag(TAG_PATH);
     return randomIssue(tag.getName());
   }
 
-  Issue randomIssue(final String issueKey) {
+  static Issue randomIssue(final String issueKey) {
     final String[] tagParts = issueKey.split("-");
     Preconditions.checkArgument(tagParts.length == 2);
     return Issue
@@ -46,11 +46,11 @@ class RandomDataGenerator {
         .build();
   }
 
-  List<Issue> randomIssues(int count) {
-    return randomEntities(this::randomIssue, count, count);
+  static List<Issue> randomIssues(int count) {
+    return randomEntities(RandomDataGenerator::randomIssue, count, count);
   }
 
-  Worklog randomWorklog() {
+  static Worklog randomWorklog() {
     return Worklog.builder()
         .author(FAKER.internet().emailAddress())
         .body(FAKER.book().title())
@@ -60,7 +60,7 @@ class RandomDataGenerator {
         .build();
   }
 
-  private <T> List<T> randomEntities(final Supplier<T> supplier, final int min, final int max) {
+  static private <T> List<T> randomEntities(final Supplier<T> supplier, final int min, final int max) {
     return IntStream
         .range(0, FAKER.random().nextInt(min, max))
         .mapToObj(i -> supplier.get())

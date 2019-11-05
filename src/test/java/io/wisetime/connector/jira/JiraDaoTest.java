@@ -42,6 +42,7 @@ import static io.wisetime.connector.jira.ConnectorLauncher.JiraConnectorConfigKe
 import static io.wisetime.connector.jira.ConnectorLauncher.JiraDbModule;
 import static io.wisetime.connector.jira.JiraDao.Issue;
 import static io.wisetime.connector.jira.JiraDao.Worklog;
+import static io.wisetime.connector.jira.RandomDataGenerator.randomIssue;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -145,6 +146,37 @@ class JiraDaoTest {
     assertThat(jiraDao.pingDb())
         .as("DB should be accessible")
         .isTrue();
+  }
+
+  @Test
+  void issueCount_none_found() {
+    assertThat(jiraDao.issueCount())
+        .as("There are no issues in the database")
+        .isEqualTo(0);
+  }
+
+  @Test
+  void issueCount_all_projects() {
+    insertRandomIssueToDb();
+    insertRandomIssueToDb();
+
+    assertThat(jiraDao.issueCount())
+        .as("Issues from all projects should be counted")
+        .isEqualTo(2);
+  }
+
+  @Test
+  void issueCount_specific_projects() {
+    saveProject(1L, "WT");
+    saveJiraIssue(1L, randomIssue());
+    saveJiraIssue(1L, randomIssue());
+
+    saveProject(2L, "JI");
+    saveJiraIssue(2L, randomIssue());
+
+    assertThat(jiraDao.issueCount("WT"))
+        .as("Only issues from the WT project should be counted")
+        .isEqualTo(2);
   }
 
   @Test
