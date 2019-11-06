@@ -76,9 +76,9 @@ public class JiraConnector implements WiseTimeConnector {
     Preconditions.checkArgument(jiraDao.hasExpectedSchema(),
         "Jira Database schema is unsupported by this connector");
 
-    this.tagSyncIntervalMinutes = connectorModule::getTagSyncIntervalMinutes;
-    this.apiClient = connectorModule.getApiClient();
-    this.connectorStore = connectorModule.getConnectorStore();
+    tagSyncIntervalMinutes = connectorModule::getTagSyncIntervalMinutes;
+    apiClient = connectorModule.getApiClient();
+    connectorStore = connectorModule.getConnectorStore();
     templateFormatter = new TemplateFormatter(
         TemplateFormatterConfig.builder()
             .withTemplatePath("classpath:jira-template.ftl")
