@@ -94,7 +94,7 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public void performTagUpdate() {
     syncNewIssues();
-    refreshIssues(tagUpsertBatchSize());
+    refreshIssues(tagRefreshBatchSize());
   }
 
   /**
@@ -310,6 +310,21 @@ public class JiraConnector implements WiseTimeConnector {
         .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
         // A large batch mitigates query round trip latency
         .orElse(200);
+  }
+
+  @VisibleForTesting
+  int tagRefreshBatchSize() {
+    final long tagCount = jiraDao.issueCount(getProjectKeysFilter());
+    final long batchFullFortnightlyRefresh = (long) Math.ceil(tagCount / 4000);
+
+    if (batchFullFortnightlyRefresh > tagUpsertBatchSize()) {
+      return tagUpsertBatchSize();
+    }
+    final int minimumBatchSize = 10;
+    if (batchFullFortnightlyRefresh < minimumBatchSize) {
+      return minimumBatchSize;
+    }
+    return (int) batchFullFortnightlyRefresh;
   }
 
   private String tagUpsertPath() {

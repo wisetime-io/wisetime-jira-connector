@@ -161,4 +161,31 @@ class JiraConnectorRefreshIssuesTest {
         .isEqualTo(issue2.getId())
         .as("Last refreshed ID saved is from the last item in the issues list");
   }
+
+  @Test
+  void tagRefreshBatchSize_enforce_min() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "100");
+    when(jiraDao.issueCount(anyString())).thenReturn(100L);
+    assertThat(connector.tagRefreshBatchSize())
+        .as("Calculated batch size was less than the minimum refresh batch size")
+        .isEqualTo(10);
+  }
+
+  @Test
+  void tagRefreshBatchSize_enforce_max() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "20");
+    when(jiraDao.issueCount(anyString())).thenReturn(10000000L);
+    assertThat(connector.tagRefreshBatchSize())
+        .as("Calculated batch size was more than the maximum refresh batch size")
+        .isEqualTo(20);
+  }
+
+  @Test
+  void tagRefreshBatchSize_calculated() {
+    RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "1000");
+    when(jiraDao.issueCount(anyString())).thenReturn(400000L);
+    assertThat(connector.tagRefreshBatchSize())
+        .as("Calculated batch size was greater than the minimum and less than the maximum")
+        .isEqualTo(100);
+  }
 }
