@@ -8,6 +8,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import com.vdurmont.emoji.EmojiParser;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -56,6 +58,7 @@ public class JiraConnector implements WiseTimeConnector {
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
   private static final String LAST_REFRESHED_ISSUE_KEY = "last-refreshed-issue-id";
 
+  private Supplier<Integer> tagSyncIntervalMinutes;
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
   private TemplateFormatter templateFormatter;
@@ -73,6 +76,7 @@ public class JiraConnector implements WiseTimeConnector {
     Preconditions.checkArgument(jiraDao.hasExpectedSchema(),
         "Jira Database schema is unsupported by this connector");
 
+    this.tagSyncIntervalMinutes = connectorModule::getTagSyncIntervalMinutes;
     this.apiClient = connectorModule.getApiClient();
     this.connectorStore = connectorModule.getConnectorStore();
     templateFormatter = new TemplateFormatter(
@@ -315,7 +319,7 @@ public class JiraConnector implements WiseTimeConnector {
   @VisibleForTesting
   int tagRefreshBatchSize() {
     final long tagCount = jiraDao.issueCount(getProjectKeysFilter());
-    final long batchFullFortnightlyRefresh = (long) Math.ceil(tagCount / 4000);
+    final long batchFullFortnightlyRefresh = tagCount / (14 * 24 * 60 / tagSyncIntervalMinutes.get());
 
     if (batchFullFortnightlyRefresh > tagUpsertBatchSize()) {
       return tagUpsertBatchSize();

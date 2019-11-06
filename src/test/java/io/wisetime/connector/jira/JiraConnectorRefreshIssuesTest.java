@@ -48,6 +48,7 @@ import static org.mockito.Mockito.when;
 class JiraConnectorRefreshIssuesTest {
 
   private static RandomDataGenerator randomDataGenerator = new RandomDataGenerator();
+  private static ConnectorModule connectorModule;
   private static JiraDao jiraDao = mock(JiraDao.class);
   private static ApiClient apiClient = mock(ApiClient.class);
   private static ConnectorStore connectorStore = mock(ConnectorStore.class);
@@ -66,7 +67,8 @@ class JiraConnectorRefreshIssuesTest {
     // Ensure JiraConnector#init will not fail
     doReturn(true).when(jiraDao).hasExpectedSchema();
 
-    connector.init(new ConnectorModule(apiClient, connectorStore));
+    connectorModule = new ConnectorModule(apiClient, connectorStore);
+    connector.init(connectorModule);
   }
 
   @SuppressWarnings("Duplicates")
@@ -165,7 +167,7 @@ class JiraConnectorRefreshIssuesTest {
   @Test
   void tagRefreshBatchSize_enforce_min() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "100");
-    when(jiraDao.issueCount(anyString())).thenReturn(100L);
+    when(jiraDao.issueCount(anyString())).thenReturn(20L);
     assertThat(connector.tagRefreshBatchSize())
         .as("Calculated batch size was less than the minimum refresh batch size")
         .isEqualTo(10);
@@ -174,7 +176,7 @@ class JiraConnectorRefreshIssuesTest {
   @Test
   void tagRefreshBatchSize_enforce_max() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "20");
-    when(jiraDao.issueCount(anyString())).thenReturn(10000000L);
+    when(jiraDao.issueCount(anyString())).thenReturn(10_000_000L);
     assertThat(connector.tagRefreshBatchSize())
         .as("Calculated batch size was more than the maximum refresh batch size")
         .isEqualTo(20);
@@ -183,9 +185,9 @@ class JiraConnectorRefreshIssuesTest {
   @Test
   void tagRefreshBatchSize_calculated() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "1000");
-    when(jiraDao.issueCount(anyString())).thenReturn(400000L);
+    when(jiraDao.issueCount(anyString())).thenReturn(400_000L);
     assertThat(connector.tagRefreshBatchSize())
         .as("Calculated batch size was greater than the minimum and less than the maximum")
-        .isEqualTo(100);
+        .isEqualTo(400_000 / (20160 / connectorModule.getTagSyncIntervalMinutes()));
   }
 }
