@@ -8,6 +8,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import com.vdurmont.emoji.EmojiParser;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -56,6 +58,7 @@ public class JiraConnector implements WiseTimeConnector {
   private static final String LAST_SYNCED_ISSUE_KEY = "last-synced-issue-id";
   private static final String LAST_REFRESHED_ISSUE_KEY = "last-refreshed-issue-id";
 
+  private Supplier<Integer> tagSyncIntervalMinutes;
   private ApiClient apiClient;
   private ConnectorStore connectorStore;
   private TemplateFormatter templateFormatter;
@@ -73,8 +76,9 @@ public class JiraConnector implements WiseTimeConnector {
     Preconditions.checkArgument(jiraDao.hasExpectedSchema(),
         "Jira Database schema is unsupported by this connector");
 
-    this.apiClient = connectorModule.getApiClient();
-    this.connectorStore = connectorModule.getConnectorStore();
+    tagSyncIntervalMinutes = connectorModule::getTagSyncIntervalMinutes;
+    apiClient = connectorModule.getApiClient();
+    connectorStore = connectorModule.getConnectorStore();
     templateFormatter = new TemplateFormatter(
         TemplateFormatterConfig.builder()
             .withTemplatePath("classpath:jira-template.ftl")
@@ -94,7 +98,7 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public void performTagUpdate() {
     syncNewIssues();
-    refreshIssues(tagUpsertBatchSize());
+    refreshIssues(tagRefreshBatchSize());
   }
 
   /**
@@ -310,6 +314,21 @@ public class JiraConnector implements WiseTimeConnector {
         .getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE)
         // A large batch mitigates query round trip latency
         .orElse(200);
+  }
+
+  @VisibleForTesting
+  int tagRefreshBatchSize() {
+    final long tagCount = jiraDao.issueCount(getProjectKeysFilter());
+    final long batchFullFortnightlyRefresh = tagCount / (14 * 24 * 60 / tagSyncIntervalMinutes.get());
+
+    if (batchFullFortnightlyRefresh > tagUpsertBatchSize()) {
+      return tagUpsertBatchSize();
+    }
+    final int minimumBatchSize = 10;
+    if (batchFullFortnightlyRefresh < minimumBatchSize) {
+      return minimumBatchSize;
+    }
+    return (int) batchFullFortnightlyRefresh;
   }
 
   private String tagUpsertPath() {

@@ -129,6 +129,19 @@ class JiraDao {
     }
   }
 
+  long issueCount(final String... projectKeys) {
+    String query = "SELECT COUNT(*) "
+        + "FROM jiraissue INNER JOIN project ON project.id = jiraissue.project ";
+
+    if (ArrayUtils.isNotEmpty(projectKeys)) {
+      query += "WHERE project.pkey in (:projectKeys) ";
+    }
+    return query().select(query)
+        .namedParam("projectKeys", Lists.newArrayList(projectKeys))
+        .firstResult(Mappers.singleLong())
+        .orElse(0L);
+  }
+
   Optional<Issue> findIssueByTagName(final String tagName) {
     return IssueKey
         .fromTagName(tagName)
