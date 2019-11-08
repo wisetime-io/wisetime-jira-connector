@@ -9,6 +9,7 @@ import com.google.common.base.Preconditions;
 
 import com.vdurmont.emoji.EmojiParser;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -319,7 +320,7 @@ public class JiraConnector implements WiseTimeConnector {
   @VisibleForTesting
   int tagRefreshBatchSize() {
     final long tagCount = jiraDao.issueCount(getProjectKeysFilter());
-    final long batchFullFortnightlyRefresh = tagCount / (14 * 24 * 60 / tagSyncIntervalMinutes.get());
+    final long batchFullFortnightlyRefresh = tagCount / (TimeUnit.DAYS.toMinutes(14) / tagSyncIntervalMinutes.get());
 
     if (batchFullFortnightlyRefresh > tagUpsertBatchSize()) {
       return tagUpsertBatchSize();
