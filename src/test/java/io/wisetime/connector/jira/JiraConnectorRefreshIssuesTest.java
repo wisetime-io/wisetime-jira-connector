@@ -185,9 +185,10 @@ class JiraConnectorRefreshIssuesTest {
   @Test
   void tagRefreshBatchSize_calculated() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, "1000");
+    final int fourteenDaysInMinutes = 20_160;
     when(jiraDao.issueCount(anyString())).thenReturn(400_000L);
     assertThat(connector.tagRefreshBatchSize())
         .as("Calculated batch size was greater than the minimum and less than the maximum")
-        .isEqualTo(400_000 / (20160 / connectorModule.getTagSyncIntervalMinutes()));
+        .isEqualTo(400_000 / (fourteenDaysInMinutes / connectorModule.getTagSyncIntervalMinutes()));
   }
 }
