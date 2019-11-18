@@ -42,22 +42,14 @@ public class FakeEntities {
         .durationSplitStrategy(randomEnum(TimeGroup.DurationSplitStrategyEnum.class));
   }
 
-  public Tag randomTagWithOldPathFormat(final String path) {
+  public Tag randomTag(final String path) {
     final String name = FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999);
-    return new Tag()
-        .path(path)
-        .name(name)
-        .description(FAKER.lorem().characters(30, 200));
-  }
-
-  public Tag randomTag(final String pathPrefix) {
-    final String name = FAKER.letterify("??-") + FAKER.number().numberBetween(1000, 9999);
-    return randomTag(pathPrefix, name);
+    return randomTag(path, name);
   }
 
   public Tag randomTag(final String pathPrefix, final String name) {
     return new Tag()
-        .path(pathPrefix + name)
+        .path(pathPrefix)
         .name(name)
         .description(FAKER.lorem().characters(30, 200));
   }
