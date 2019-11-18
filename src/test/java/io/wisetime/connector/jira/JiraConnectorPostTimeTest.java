@@ -282,7 +282,7 @@ class JiraConnectorPostTimeTest {
 
   @Test
   void postTime_cant_find_relevant_issue_backwards_compatibility() {
-    final Tag tag = fakeEntities.randomTagWithOldPathFormat("Jira");
+    final Tag tag = fakeEntities.randomTag("Jira");
     final TimeGroup timeGroup = fakeEntities.randomTimeGroup()
         .tags(ImmutableList.of(tag));
 
