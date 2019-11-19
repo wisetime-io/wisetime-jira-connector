@@ -31,7 +31,6 @@ import io.wisetime.connector.ConnectorModule;
 import io.wisetime.connector.WiseTimeConnector;
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
-import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.connector.template.TemplateFormatter;
@@ -109,11 +108,6 @@ public class JiraConnector implements WiseTimeConnector {
   @Override
   public PostResult postTime(final Request request, final TimeGroup timeGroup) {
     log.info("Posted time received: {}", timeGroup.getGroupId());
-
-    if (callerKey().isPresent() && !callerKey().get().equals(timeGroup.getCallerKey())) {
-      return PostResult.PERMANENT_FAILURE()
-          .withMessage("Invalid caller key in posted time webhook call");
-    }
 
     if (timeGroup.getTags().isEmpty()) {
       return PostResult.SUCCESS()
@@ -336,10 +330,6 @@ public class JiraConnector implements WiseTimeConnector {
     return RuntimeConfig
         .getString(JiraConnectorConfigKey.TAG_UPSERT_PATH)
         .orElse("/Jira/");
-  }
-
-  private Optional<String> callerKey() {
-    return RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY);
   }
 
   /**

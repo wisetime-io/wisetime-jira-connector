@@ -19,7 +19,6 @@ import java.util.Optional;
 
 import io.wisetime.connector.ConnectorModule;
 import io.wisetime.connector.api_client.ApiClient;
-import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.generated.connect.UpsertTagRequest;
@@ -58,11 +57,6 @@ class JiraConnectorSyncNewIssuesTest {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE, String.valueOf(100));
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
     RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT, IPFLOW");
-    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
-
-    assertThat(RuntimeConfig.getString(ConnectorConfigKey.CALLER_KEY))
-        .as("CALLER_KEY empty value expected")
-        .isNotPresent();
 
     assertThat(RuntimeConfig.getInt(JiraConnectorConfigKey.TAG_UPSERT_BATCH_SIZE))
         .as("TAG_UPSERT_BATCH_SIZE should be set to 100")

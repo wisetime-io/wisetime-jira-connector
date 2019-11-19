@@ -19,7 +19,6 @@ import java.util.Optional;
 
 import io.wisetime.connector.ConnectorModule;
 import io.wisetime.connector.api_client.ApiClient;
-import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.generated.connect.UpsertTagRequest;
@@ -58,7 +57,6 @@ class JiraConnectorRefreshIssuesTest {
   static void setUp() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/test/path/");
     RuntimeConfig.setProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER, "WT");
-    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
     connector = Guice.createInjector(binder -> {
       binder.bind(JiraDao.class).toProvider(() -> jiraDao);

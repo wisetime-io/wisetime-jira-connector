@@ -20,7 +20,6 @@ import io.wisetime.connector.ConnectorModule;
 import io.wisetime.connector.api_client.ApiClient;
 import io.wisetime.connector.api_client.PostResult;
 import io.wisetime.connector.api_client.PostResult.PostResultStatus;
-import io.wisetime.connector.config.ConnectorConfigKey;
 import io.wisetime.connector.config.RuntimeConfig;
 import io.wisetime.connector.datastore.ConnectorStore;
 import io.wisetime.generated.connect.Tag;
@@ -73,7 +72,6 @@ class JiraConnectorPostTimeTest {
   void setUpTest() {
     RuntimeConfig.setProperty(JiraConnectorConfigKey.TAG_UPSERT_PATH, "/Jira/");
     RuntimeConfig.clearProperty(JiraConnectorConfigKey.PROJECT_KEYS_FILTER);
-    RuntimeConfig.clearProperty(ConnectorConfigKey.CALLER_KEY);
 
     reset(jiraDaoMock);
     reset(apiClientMock);
@@ -92,38 +90,6 @@ class JiraConnectorPostTimeTest {
     assertThat(connector.postTime(fakeRequest(), groupWithNoTags).getStatus())
         .isEqualTo(PostResultStatus.SUCCESS)
         .as("There is nothing to post to Jira");
-
-    verifyJiraNotUpdated();
-  }
-
-  @Test
-  void postTime_with_invalid_caller_key_should_fail() {
-    RuntimeConfig.setProperty(ConnectorConfigKey.CALLER_KEY, "caller-key");
-
-    final TimeGroup groupWithNoTags = fakeEntities
-        .randomTimeGroup()
-        .callerKey("wrong-key")
-        .tags(ImmutableList.of());
-
-    assertThat(connector.postTime(fakeRequest(), groupWithNoTags).getStatus())
-        .isEqualTo(PostResultStatus.PERMANENT_FAILURE)
-        .as("Invalid caller key should result in post failure");
-
-    verifyJiraNotUpdated();
-  }
-
-  @Test
-  void postTime_with_valid_caller_key_should_succeed() {
-    RuntimeConfig.setProperty(ConnectorConfigKey.CALLER_KEY, "caller-key");
-
-    final TimeGroup groupWithNoTags = fakeEntities
-        .randomTimeGroup()
-        .callerKey("caller-key")
-        .tags(ImmutableList.of());
-
-    assertThat(connector.postTime(fakeRequest(), groupWithNoTags).getStatus())
-        .isEqualTo(PostResultStatus.SUCCESS)
-        .as("Posting time with valid caller key should succeed");
 
     verifyJiraNotUpdated();
   }
