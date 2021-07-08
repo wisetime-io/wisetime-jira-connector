@@ -1,0 +1,2 @@
+# Set JVM via `sdk use` in rootDir
+java=11.0.11.j9-adpt
