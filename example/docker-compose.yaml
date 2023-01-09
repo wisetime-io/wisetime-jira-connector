@@ -1,0 +1,73 @@
+# Copyright (c) 2019 Practice Insight Pty Ltd. All rights reserved.
+#
+# Docker Compose manifest for running WiseTime Patricia Connector.
+#
+# To start the WiseTime Connector, run the following command in the same directory as
+# this docker-compose.yaml file:
+#
+#   docker-compose -p wisetime-jira-connector up -d
+#
+# To stop the WiseTime Connector, run the following command in the same directory:
+#
+#   docker-compose down
+#
+# This docker-compose.yaml file creates a local volume for persistence. To list the
+# volume:
+#
+#   docker volume ls
+#
+version: "3"
+services:
+  wisetime-patricia-connector:
+    labels:
+      description: WiseTime Jira Connector
+    image: wisetime/wisetime-jira-connector:latest
+    restart: always
+
+    # uncomment the ports: definition if the connector should work in webhook mode.
+    # ports:
+    #  - "8080:8080"
+
+    environment:
+      API_KEY: YOUR_WISETIME_CONNECT_API_KEY
+
+      # Set loglevel if other than default - INFO - required
+      # LOGLEVEL: DEBUG
+
+      # define appropriate timezone
+      TIMEZONE: Australia/Perth
+
+      # Disable tag uploading by setting TAG_SCAN to DISABLED (tag upload must be done by, etg. using the SQL connector)
+      TAG_SCAN: ENABLED
+      TAG_UPSERT_PATH: /Jira/
+      TAG_UPSERT_BATCH_SIZE: 500
+
+      # uncomment the following - as well as the above docker ports: definition - if the connector
+      # should work in webhook mode. If the connector should work using other than the default
+      # port, please adapt the docker ports: definition in line with the WEBHOOK_PORT variable.
+      # RECEIVE_POSTED_TIME: WEBHOOK
+      # CALLER_KEY: PICK_A_SECRET
+      # WEBHOOK_PORT: 8080
+
+      # uncomment if tags from all Jira projects should be made available. Specify the list of projects for for which tags should be uploaded to the wisetime service
+      # PROJECT_KEYS_FILTER: <list_of_project_keys>
+
+      # Jira URL prefix can be used to generate a URL when creating tags. If a URL is present, the tag will be clickable in WiseTime. Clicking on the tag will open the URL of related ticket.
+      # JIRA_ISSUE_URL_PREFIX: support.company.com/jira/browse/
+
+      JIRA_JDBC_URL: "jdbc:mysql://HOST:PORT/jira_database?useUnicode=true&characterEncoding=UTF8&useSSL=false"
+
+      # postgres database is not supported but has successfully been used with this connector using the following db string
+      # JIRA_JDBC_URL: "jdbc:postgresql://HOST:PORT/jira?useUnicode=true&characterEncoding=UTF8&stringtype=unspecified&useSSL=false"
+
+      JIRA_DB_USER: USERNAME
+      JIRA_DB_PASSWORD: PASSWORD
+
+      # Local cache for keeping track of cases and projects that have been synced
+      DATA_DIR: /usr/local/wisetime-connector/data/
+
+    volumes:
+      - data:/usr/local/wisetime-connector/data/
+volumes:
+  data:
+    driver: local
