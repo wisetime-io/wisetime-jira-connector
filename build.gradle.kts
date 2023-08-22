@@ -67,7 +67,7 @@ jib {
     }
   } else {
     from {
-      image = "gcr.io/wise-pub/connect-java-11-j9@sha256:98ec5f00539bdffeb678c3b4a34c07c77e4431395286ecc6a083298089b3d0ec"
+      image = "europe-west3-docker.pkg.dev/wise-pub/tools/connect-java-11-j9@sha256:d4e0e6d00a6babc29b68dd3ae28f46d00400b25b5ee82d9961bb0ecb08970215"
     }
     to {
       project.afterEvaluate { // <-- so we evaluate version after it has been set
